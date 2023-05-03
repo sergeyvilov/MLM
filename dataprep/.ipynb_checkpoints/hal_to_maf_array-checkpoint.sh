@@ -11,7 +11,6 @@
 #SBATCH -J MSA_coverage
 #SBATCH -c 2
 #SBATCH --mem=24G
-#SBATCH -t 03:00:00
 #SBATCH -o /s/project/mll/sergey/MLM/exp/600_way_stop_codon/logs/%A_%a.o
 #SBATCH -e /s/project/mll/sergey/MLM/exp/600_way_stop_codon/logs/%A_%a.e
 
@@ -54,7 +53,7 @@ for multiplier in {0..20}; do
   length=3
 
   #output_dir=$workdir/alignments
-  output_dir=$workdir/$((SLURM_ARRAY_TASK_ID/max_files_per_subdir))
+  output_dir=$workdir/$((row_num/max_files_per_subdir))
 
   mkdir -p $output_dir
   #mkdir -p $output_dir/a2m

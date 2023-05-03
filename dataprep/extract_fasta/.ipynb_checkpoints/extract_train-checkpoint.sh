@@ -11,20 +11,31 @@
 # For regions with negative MAF (positive human genes) 
 # or positive MAF (negative human genes) take reverse complement
 #
+#TO RUN: sbatch --array=1-240%10 extract_train.sh
 ##########################################################
+
+#SBATCH -J Extract_MSA
+#SBATCH -c 2
+#SBATCH --mem=24G
+#SBATCH -o /s/project/mll/sergey/MLM/fasta/logs/%A_%a.o
+#SBATCH -e /s/project/mll/sergey/MLM/fasta/logs/%A_%a.e
 
 LINE_WIDTH=80
 
 data_dir=/s/project/mll/sergey/MLM
 
+species_list='240_mammals.txt' #241-1 Homo_sapiens
+
 hal_file="$data_dir/600_way/241-mammalian-2020v2.hal"
 utr_table="$data_dir/UTR_coords/GRCh38_3_prime_UTR_all_species.tsv" 
 
-output_dir="$data_dir/fasta/"
+output_dir="$data_dir/fasta/240_mammals/"
 
 mkdir -p $output_dir
 
-output_fasta="$output_dir/240_mammals.fa" #241-1 (Homo Sapiens)
+species_name=$(head -n ${SLURM_ARRAY_TASK_ID} $species_list | tail -1)
+
+output_fasta="$output_dir/$species_name.fa" 
 
 true > $output_fasta
 
@@ -51,6 +62,6 @@ else
     echo '' >> $output_fasta
 fi
 
-done < <(grep -v 'Homo_sapiens' $utr_table|tail -n +2)
+done < <(grep $species_name $utr_table)
 
 rm tmp.fa
