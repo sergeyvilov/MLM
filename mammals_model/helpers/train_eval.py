@@ -1,117 +1,113 @@
 import torch
+
+import numpy as np
+
 from torch import nn
 
 from tqdm.notebook import tqdm
 
+from helpers.metrics import MaskedAccuracy
 
-def model_train(model, optimizer, dataloader, device, scheduler=None, use_tuplemax=True, max_abs_grad =None, silent=False):
+from helpers.misc import EMA
+    
+def model_train(model, optimizer, dataloader, device, silent=False):
 
+    criterion = torch.nn.CrossEntropyLoss(reduction = "mean")
+
+    metric = MaskedAccuracy().to(device)
+    
     model.train() #model to train mode
-
-    #torch.autograd.detect_anomaly(True)
-
-    if use_tuplemax:
-        criterion = losses.TuplemaxLoss()
-    else:
-        criterion = nn.CrossEntropyLoss() #binary cross-entropy
 
     if not silent:
         tot_itr = len(dataloader.dataset)//dataloader.batch_size #total train iterations
         pbar = tqdm(total = tot_itr, ncols=700) #progress bar
 
-    beta = 0.98 #beta of running average, don't change
+    loss_EMA = EMA()
+    
+    masked_acc, total_acc = 0., 0., 
+        
+    for itr_idx, ((masked_sequence, species_label), targets_masked, targets) in enumerate(dataloader):
+        
+        masked_sequence = masked_sequence.to(device)
+        species_label = species_label.to(device)
+        targets_masked = targets_masked.to(device)
+        targets = targets.to(device)
+            
+        logits, _ = model(masked_sequence, species_label)
 
-    avg_loss = 0. #average loss
-
-    all_predictions = []
-
-    softmax = torch.nn.Softmax(dim=1)
-
-    for itr_idx, (tensors, labels) in enumerate(dataloader):
-
-        tensors = tensors.float().to(device)
-        labels = labels.to(device)
-
-        outputs = model(tensors)
-
-        loss = criterion(outputs, labels)
+        loss = criterion(logits, targets_masked)
 
         optimizer.zero_grad()
+        
         loss.backward()
 
         #if max_abs_grad:
         #    torch.nn.utils.clip_grad_value_(model.parameters(), max_abs_grad)
 
-
         optimizer.step()
-
-        if scheduler:
-            scheduler.step()
-
-        #exponential moving evaraging of loss
-        avg_loss = beta * avg_loss + (1-beta)*loss.item()
-        smoothed_loss = avg_loss / (1 - beta**(itr_idx+1))
-
-        #outputs = softmax(outputs)
-        outputs = outputs.cpu().tolist()
-        labels = labels.cpu().tolist()
-
-        current_predictions = list(zip(outputs, labels))
-        all_predictions.extend(current_predictions)
-
+                
+        smoothed_loss = loss_EMA.update(loss.item())
+            
+        preds = torch.argmax(logits, dim=1)
+        
+        masked_acc += metric(preds, targets_masked).detach() # compute only on masked nucleotides
+        total_acc += metric(preds, targets).detach()
+        
         if not silent:
-            pbar.update(1)
-            pbar.set_description(f"Running loss:{smoothed_loss:.4}")
 
+            pbar.update(1)
+            pbar.set_description(f"acc: {total_acc/(itr_idx+1):.2}, masked acc: {masked_acc/(itr_idx+1):.2}, loss: {smoothed_loss:.4}")
+         
     if not silent:
         del pbar
+     
+    return smoothed_loss, total_acc/(itr_idx+1), masked_acc/(itr_idx+1) 
 
-    return smoothed_loss, all_predictions
+def model_eval(model, optimizer, dataloader, device, save_embeddings = False, silent=False):
 
-def model_eval(model, optimizer, dataloader, device, use_tuplemax=True, silent=False):
+    criterion = torch.nn.CrossEntropyLoss(reduction = "mean")
 
-    model.eval() #model to evaluation mode
-
-    if use_tuplemax:
-        criterion = losses.TuplemaxLoss()
-    else:
-        criterion = nn.CrossEntropyLoss() #binary cross-entropy
+    metric = MaskedAccuracy().to(device)
+    
+    model.eval() #model to train mode
 
     if not silent:
-        tot_itr = len(dataloader)//dataloader.batch_size #total evaluation iterations
+        tot_itr = len(dataloader.dataset)//dataloader.batch_size #total train iterations
         pbar = tqdm(total = tot_itr, ncols=700) #progress bar
 
-    all_loss = 0. #all losses, for simple averaging
-
-    all_predictions = []
-
-    softmax = torch.nn.Softmax(dim=1)
-
+    avg_loss, masked_acc, total_acc = 0., 0., 0.
+    
+    all_embeddings = []
+        
     with torch.no_grad():
 
-        for itr_idx, (tensors, labels) in enumerate(dataloader):
+        for itr_idx, ((masked_sequence, species_label), targets_masked, targets) in enumerate(dataloader):
 
-            tensors = tensors.float().to(device)
-            labels = labels.to(device)
+            masked_sequence = masked_sequence.to(device)
+            species_label = species_label.to(device)
+            targets_masked = targets_masked.to(device)
+            targets = targets.to(device)
 
-            outputs = model(tensors)
+            logits, embeddings = model(masked_sequence, species_label)
 
-            loss = criterion(outputs, labels)
+            loss = criterion(logits, targets_masked)
 
-            all_loss += loss.item()
+            avg_loss += loss.item()
+                
+            preds = torch.argmax(logits, dim=1)
 
-            #outputs = softmax(outputs)
-            outputs = outputs.cpu().tolist()
-            labels = labels.cpu().tolist()
-
-            current_predictions = list(zip(outputs, labels))
-            all_predictions.extend(current_predictions)
-
+            masked_acc += metric(preds, targets_masked).detach() # compute only on masked nucleotides
+            total_acc += metric(preds, targets).detach()
+                
             if not silent:
+                
                 pbar.update(1)
-                pbar.set_description(f"Running loss:{all_loss/(itr_idx+1):.4}")
+                pbar.set_description(f"acc: {total_acc/(itr_idx+1):.2}, masked acc: {masked_acc/(itr_idx+1):.2}, loss: {avg_loss/(itr_idx+1):.4}")
+                
+            if save_embeddings:
+                all_embeddings.append(embeddings['seq_embedding'].detach().cpu().numpy())
 
     if not silent:
         del pbar
-
-    return all_loss/(itr_idx+1), all_predictions
+     
+    return (avg_loss/(itr_idx+1), total_acc/(itr_idx+1), masked_acc/(itr_idx+1)), all_embeddings

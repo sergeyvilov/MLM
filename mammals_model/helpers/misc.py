@@ -5,6 +5,22 @@ import sys
 import torch
 import os
 
+class EMA():
+    '''
+    Exponential moving average
+    '''
+    def __init__(self, beta = 0.98):
+        
+        self.beta = beta
+        self.itr_idx = 0
+        self.average_value = 0
+        
+    def update(self, value):
+        self.itr_idx += 1
+        self.average_value = self.beta * self.average_value + (1-self.beta)*value
+        smoothed_average = self.average_value / (1 - self.beta**(self.itr_idx))
+        return smoothed_average
+    
 class dotdict(dict):
     '''
     dot.notation access to dictionary attributes
@@ -15,25 +31,22 @@ class dotdict(dict):
 
 
 def str2bool(v):
-  return v.lower() in ("yes", "true", "t", "1")
+    return v.lower() in ("yes", "true", "t", "1")
 
 def list2range(v):
     r = []
     for num in v:
-      if not ':' in num:
-        r.append(int(num))
-      else:
-        k = [int(x) for x in num.split(':')]
-        if len(k)==2:
-            r.extend(list(range(k[0],k[1]+1)))
+        if not ':' in num:
+            r.append(int(num))
         else:
-            r.extend(list(range(k[0],k[1]+1,k[2])))
+            k = [int(x) for x in num.split(':')]
+            if len(k)==2:
+                r.extend(list(range(k[0],k[1]+1)))
+            else:
+                r.extend(list(range(k[0],k[1]+1,k[2])))
     return r
 
 
-def save_predictions(data, file_name):
-    with open(file_name, 'wb') as f:
-        pickle.dump(data, f)
 
 def print(*args, **kwargs):
     '''

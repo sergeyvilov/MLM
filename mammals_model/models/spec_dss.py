@@ -1,7 +1,6 @@
 
 import torch
 import torch.nn as nn
-#from pytorch_lightning import LightningModule
 import torch.nn.functional as F
 import numpy as np
 
@@ -29,7 +28,7 @@ class SpecAdd(nn.Module):
         super().__init__()
 
         #if encoder=="label":
-        self.species_embedder = nn.Embedding(806,d_model)
+        self.species_embedder = nn.Embedding(240,d_model)
         self.embed = embed
 
     def forward(self, x, spec_labels):
