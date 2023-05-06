@@ -105,7 +105,8 @@ def model_eval(model, optimizer, dataloader, device, save_embeddings = False, si
                 pbar.set_description(f"acc: {total_acc/(itr_idx+1):.2}, masked acc: {masked_acc/(itr_idx+1):.2}, loss: {avg_loss/(itr_idx+1):.4}")
                 
             if save_embeddings:
-                all_embeddings.append(embeddings['seq_embedding'].detach().cpu().numpy())
+                embeddings = embeddings['seq_embedding'].detach().cpu().numpy()
+                all_embeddings.append(embeddings)
 
     if not silent:
         del pbar

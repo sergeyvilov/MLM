@@ -1,8 +1,4 @@
 #!/usr/bin/env python
-# coding: utf-8
-
-# In[1]:
-
 
 import numpy as np
 import pandas as pd
@@ -18,10 +14,6 @@ from torch.utils.data import DataLoader, Dataset
 
 import argparse
 
-
-# In[2]:
-
-
 from encoding_utils import sequence_encoders
 
 import helpers.train_eval as train_eval    #train and evaluation
@@ -32,56 +24,45 @@ from models.spec_dss import DSSResNet, DSSResNetEmb, SpecAdd
 
 parser = argparse.ArgumentParser("main.py")
 
-input_params.fasta = '/s/project/mll/sergey/effect_prediction/MLM/fasta/240_mammals/240_mammals.shuffled.fa'
-input_params.species_list = '/s/project/mll/sergey/effect_prediction/MLM/fasta/240_mammals/240_species.txt'
-input_params.tot_epochs = 50
-input_params.output_dir = './test'
-input_params.train = True
-input_params.val_fraction = 0.1
-input_params.train_splits = 4
-input_params.save_at = []
-input_params.validate_every = 1
-
-parser.add_argument("--fasta_fa", help = "FASTA file", type = str, required = True)
+parser.add_argument("--fasta", help = "FASTA file", type = str, required = True)
 parser.add_argument("--species_list", help = "species list for integer encoding", type = str, required = True)
 parser.add_argument("--output_dir", help = "dir to save predictions and model/optimizer weights", type = str, required = True)
 parser.add_argument("--model_weight", help = "initialization weight of the model", type = str, default = None, required = False)
 parser.add_argument("--optimizer_weight", help = "initialization weight of the optimizer, use only to resume training", type = str, default = None, required = False)
-parser.add_argument("--val_fraction", help = "fraction of validation dataset to use", type = float, default = 0.1, required = False)
-parser.add_argument("--validate_every", help = "validate every N epochs", type = int, default = 1, required = False)
-parser.add_argument("--train", help = "batch size", action='store_true', default = False, required = False)
-
-parser.add_argument("--train_splits", help = "batch size", type = int, default = 32, required = False)
-
-parser.add_argument("--tot_epochs", help = "total number of training epochs", type = int, default = 200, required = False)
-parser.add_argument("--batch_size", help = "batch size", type = int, default = 32, required = False)
-parser.add_argument("--learning_rate", help = "learning rate", type = float, default = 5e-4, required = False)
-parser.add_argument("--weight_decay", help = "Adam weight decay", type = float, default = 0.125, required = False)
-parser.add_argument("--save_at", help = "epochs to save model/optimizer weights, 1-based", nargs='+', type = int, default = [], required = False)
+parser.add_argument("--val_fraction", help = "fraction of validation dataset to use", type = float, default = 0.05, required = False)
+parser.add_argument("--validate_every", help = "validate every N epochs", type = int,  default = 1, required = False)
+parser.add_argument("--test", help = "model to inference mode", action='store_true', default = False, required = False)
+parser.add_argument("--seq_len", help = "max UTR sequence length", type = int, default = 2000, required = False)
+parser.add_argument("--train_splits", help = "split each epoch into N epochs", type = int, default = 4, required = False)
+parser.add_argument("--tot_epochs", help = "total number of training epochs, (after splitting)", type = int, default = 200, required = False)
+parser.add_argument("--d_model", help = "model dimensions", type = int, default = 128, required = False)
+parser.add_argument("--n_layers", help = "number of layers", type = int, default = 4, required = False)
+parser.add_argument("--batch_size", help = "batch size", type = int, default = 512, required = False)
+parser.add_argument("--learning_rate", help = "learning rate", type = float, default = 1e-4, required = False)
+parser.add_argument("--weight_decay", help = "Adam weight decay", type = float, default = 5e-4, required = False)
+parser.add_argument("--save_at", help = "epochs to save model/optimizer weights, 1-based", nargs='+', type = str, default = [], required = False)
 
 input_params = vars(parser.parse_args())
 
 input_params = misc.dotdict(input_params)
 
-input_params.validate_at = misc.list2range(input_params.validate_at)
 input_params.save_at = misc.list2range(input_params.save_at)
 
 for param_name in ['output_dir', '\\',
-'train_dataset', 'val_dataset', 'test_dataset', '\\',
-'n_languages', 'input_height', '\\',
-'train_fraction', 'val_fraction', 'validate_every', '\\',
-'tot_epochs', 'save_at', '\\',
+'fasta', 'species_list', '\\',
+'test', '\\',
+'seq_len', '\\',
+'tot_epochs', 'save_at', 'train_splits', '\\',
+'val_fraction', 'validate_every', '\\',
+'d_model', 'n_layers', '\\',               
 'model_weight', 'optimizer_weight', '\\',
-'model_name', '\\',
-'batch_size', 'learning_rate', '\\',
-'seed','warmup_epochs', 'reduce_lr_after_epoch', 'lr_decay_gamma', '\\',
-'tuplemaxloss']:
+'batch_size', 'learning_rate', 'weight_decay', '\\',
+]:
 
     if param_name == '\\':
         print()
     else:
         print(f'{param_name.upper()}: {input_params[param_name]}')
-
 
 class SeqDataset(Dataset):
     
@@ -111,10 +92,6 @@ class SeqDataset(Dataset):
     def close(self):
         self.fasta.close()
 
-
-# In[4]:
-
-
 if torch.cuda.is_available():
     device = torch.device('cuda')
     print('\nCUDA device: GPU\n')
@@ -123,55 +100,20 @@ else:
     print('\nCUDA device: CPU\n')
     #raise Exception('CUDA is not found')
 
-
-# In[5]:
-
-
 gc.collect()
 torch.cuda.empty_cache()
 
-
-# In[27]:
-
-
-
-
-
-# In[19]:
-
-
 seq_df = pd.read_csv(input_params.fasta + '.fai', header=None, sep='\t', usecols=[0], names=['seq_name'])
 seq_df['species_name'] = seq_df.seq_name.apply(lambda x:x.split(':')[1])
-
-#seq_df['seq_len'] = seq_df.seq_name.apply(lambda x:int(x.split(':')[-1]))
-#seq_df = seq_df[seq_df.seq_len>60]
-
 species_encoding = pd.read_csv(input_params.species_list, header=None).squeeze().to_dict()
 species_encoding = {species:idx for idx,species in species_encoding.items()}
 species_encoding['Homo_sapiens'] = species_encoding['Pan_troglodytes']
-
-seq_df['species_label'] = seq_df.species_name.map({species:idx for idx,species in species_encoding.items()})
-
-#seq_df = seq_df.sample(frac = 1., random_state = 1) #DO NOT SHUFFLE, otherwise too slow
+seq_df['species_label'] = seq_df.species_name.map(species_encoding)
 
 
-# In[8]:
+seq_transform = sequence_encoders.SequenceDataEncoder(seq_len = input_params.seq_len, total_len = input_params.seq_len, mask_rate = 0.15, split_mask = True)
 
-
-seq_df = seq_df.iloc[:2000]
-
-
-# In[22]:
-
-
-seq_transform = sequence_encoders.SequenceDataEncoder(seq_len = 2000, total_len = 2000, 
-                                                      mask_rate = 0.15, split_mask = True)
-
-
-# In[23]:
-
-
-if input_params.train:
+if not input_params.test:
     
     N_train = int(len(seq_df)*(1-input_params.val_fraction))       
     train_df, test_df = seq_df.iloc[:N_train], seq_df.iloc[N_train:]
@@ -180,33 +122,25 @@ if input_params.train:
     train_df['train_fold'] = train_fold[:N_train]
 
     train_dataset = SeqDataset(input_params.fasta, train_df, transform = seq_transform)
-    train_dataloader = DataLoader(dataset = train_dataset, batch_size = 512, num_workers = 16, collate_fn = None, shuffle = None)
+    train_dataloader = DataLoader(dataset = train_dataset, batch_size = input_params.batch_size, num_workers = 2, collate_fn = None, shuffle = None)
 
 else:
                   
     test_df = seq_df
                   
 test_dataset = SeqDataset(input_params.fasta, test_df, transform = seq_transform)
-test_dataloader = DataLoader(dataset = test_dataset, batch_size = 512, num_workers = 16, collate_fn = None, shuffle = None)
+test_dataloader = DataLoader(dataset = test_dataset, batch_size = input_params.batch_size, num_workers = 2, collate_fn = None, shuffle = None)
 
+species_encoder = SpecAdd(embed = True, encoder = 'label', d_model = input_params.d_model)
 
-# In[24]:
-
-
-species_encoder = SpecAdd(embed = True, encoder = 'label', d_model = 128)
-
-model = DSSResNetEmb(d_input = 5, d_output = 5, d_model = 128, n_layers = 4, 
+model = DSSResNetEmb(d_input = 5, d_output = 5, d_model = input_params.d_model, n_layers = input_params.n_layers, 
                      dropout = 0., embed_before = True, species_encoder = species_encoder)
 
 model = model.to(device) 
 
 model_params = [p for p in model.parameters() if p.requires_grad]
 
-optimizer = torch.optim.Adam(model_params, lr = 1e-4, weight_decay = 5e-4)
-
-
-# In[28]:
-
+optimizer = torch.optim.Adam(model_params, lr = input_params.learning_rate, weight_decay = input_params.weight_decay)
 
 last_epoch = 0
 
@@ -231,21 +165,13 @@ weights_dir = os.path.join(input_params.output_dir, 'weights') #dir to save mode
 if input_params.save_at:
     os.makedirs(weights_dir, exist_ok = True)
 
-
-# In[29]:
-
-
 def metrics_to_str(metrics):
     loss, total_acc, masked_acc = metrics
     return f'loss: {loss:.4}, total acc: {total_acc:.3f}, masked acc: {masked_acc:.3f}'
 
+from helpers.misc import print    #print function that displays time
 
-# In[ ]:
-
-
-from utils.misc import print    #print function that displays time
-
-if input_params.train:
+if not input_params.test:
 
     for epoch in range(last_epoch+1, input_params.tot_epochs+1):
 
@@ -285,9 +211,9 @@ else:
     os.makedirs(predictions_dir, exist_ok = True)
 
     with open(predictions_dir + '/test_embeddings.pickle', 'wb') as f:
+        test_embeddings = np.vstack(test_embeddings)
         pickle.dump(test_embeddings, f)
 
 print()
 print(f'peak GPU memory allocation: {round(torch.cuda.max_memory_allocated(device)/1024/1024)} Mb')
 print('Done')
-
