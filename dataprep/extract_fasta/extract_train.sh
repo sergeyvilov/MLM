@@ -6,7 +6,7 @@
 
 ##########################################################
 # Extract 3'UTR regions from HAL archive to a FASTA file
-# Don't take Homo Sapiens regions
+#
 #
 # For regions with negative MAF (positive human genes) 
 # or positive MAF (negative human genes) take reverse complement
@@ -17,23 +17,25 @@
 #SBATCH -J Extract_MSA
 #SBATCH -c 2
 #SBATCH --mem=24G
-#SBATCH -o /s/project/mll/sergey/MLM/fasta/logs/%A_%a.o
-#SBATCH -e /s/project/mll/sergey/MLM/fasta/logs/%A_%a.e
+#SBATCH -o /s/project/mll/sergey/effect_prediction/MLM/fasta/logs/%A_%a.o
+#SBATCH -e /s/project/mll/sergey/effect_prediction/MLM/fasta/logs/%A_%a.e
 
 LINE_WIDTH=80
 
-data_dir=/s/project/mll/sergey/MLM
+data_dir=/s/project/mll/sergey/effect_prediction/MLM
 
-species_list='240_mammals.txt' #241-1 Homo_sapiens
+species_list='241_mammals.txt'
 
 hal_file="$data_dir/600_way/241-mammalian-2020v2.hal"
 utr_table="$data_dir/UTR_coords/GRCh38_3_prime_UTR_all_species.tsv" 
 
-output_dir="$data_dir/fasta/240_mammals/"
+output_dir="$data_dir/fasta/240_mammals/species"
 
 mkdir -p $output_dir
 
 species_name=$(head -n ${SLURM_ARRAY_TASK_ID} $species_list | tail -1)
+
+species_name=Homo_sapiens
 
 output_fasta="$output_dir/$species_name.fa" 
 
@@ -63,5 +65,7 @@ else
 fi
 
 done < <(grep -P "$species_name\t" $utr_table)
+
+samtools faidx $output_fasta
 
 rm $species_name.tmp

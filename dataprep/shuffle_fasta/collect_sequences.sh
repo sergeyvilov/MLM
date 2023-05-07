@@ -32,4 +32,4 @@ while  read -r seq_name _ ;do
 
   samtools faidx $fasta "$seq_name" >> $output_fa
 
-done < $input_fai
+done < <(grep -v Homo_sapiens $input_fai)

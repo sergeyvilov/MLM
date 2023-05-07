@@ -238,3 +238,4 @@ Xerus_inauris
 Zalophus_californianus
 Zapus_hudsonius
 Ziphius_cavirostris
+Homo_sapiens

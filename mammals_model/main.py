@@ -29,9 +29,10 @@ parser.add_argument("--species_list", help = "species list for integer encoding"
 parser.add_argument("--output_dir", help = "dir to save predictions and model/optimizer weights", type = str, required = True)
 parser.add_argument("--model_weight", help = "initialization weight of the model", type = str, default = None, required = False)
 parser.add_argument("--optimizer_weight", help = "initialization weight of the optimizer, use only to resume training", type = str, default = None, required = False)
-parser.add_argument("--val_fraction", help = "fraction of validation dataset to use", type = float, default = 0.05, required = False)
+parser.add_argument("--val_fraction", help = "fraction of validation dataset to use", type = float, default = 0.1, required = False)
 parser.add_argument("--validate_every", help = "validate every N epochs", type = int,  default = 1, required = False)
 parser.add_argument("--test", help = "model to inference mode", action='store_true', default = False, required = False)
+parser.add_argument("--save_test_embeddings", help = "save embeddings at test", action='store_true', default = False, required = False)
 parser.add_argument("--seq_len", help = "max UTR sequence length", type = int, default = 2000, required = False)
 parser.add_argument("--train_splits", help = "split each epoch into N epochs", type = int, default = 4, required = False)
 parser.add_argument("--tot_epochs", help = "total number of training epochs, (after splitting)", type = int, default = 200, required = False)
@@ -50,7 +51,7 @@ input_params.save_at = misc.list2range(input_params.save_at)
 
 for param_name in ['output_dir', '\\',
 'fasta', 'species_list', '\\',
-'test', '\\',
+'test', 'save_test_embeddings', '\\',
 'seq_len', '\\',
 'tot_epochs', 'save_at', 'train_splits', '\\',
 'val_fraction', 'validate_every', '\\',
@@ -122,14 +123,14 @@ if not input_params.test:
     train_df['train_fold'] = train_fold[:N_train]
 
     train_dataset = SeqDataset(input_params.fasta, train_df, transform = seq_transform)
-    train_dataloader = DataLoader(dataset = train_dataset, batch_size = input_params.batch_size, num_workers = 2, collate_fn = None, shuffle = None)
+    train_dataloader = DataLoader(dataset = train_dataset, batch_size = input_params.batch_size, num_workers = 16, collate_fn = None, shuffle = None)
 
 else:
-                  
+    seq_transform.frame = 0                  
     test_df = seq_df
                   
 test_dataset = SeqDataset(input_params.fasta, test_df, transform = seq_transform)
-test_dataloader = DataLoader(dataset = test_dataset, batch_size = input_params.batch_size, num_workers = 2, collate_fn = None, shuffle = None)
+test_dataloader = DataLoader(dataset = test_dataset, batch_size = input_params.batch_size, num_workers = 16, collate_fn = None, shuffle = None)
 
 species_encoder = SpecAdd(embed = True, encoder = 'label', d_model = input_params.d_model)
 
@@ -204,15 +205,16 @@ else:
     print(f'EPOCH {last_epoch}: Test/Inference...')
 
     test_metrics, test_embeddings =  train_eval.model_eval(model, optimizer, test_dataloader, device, 
-                                                          save_embeddings = True, silent = True)
+                                                          save_embeddings = input_params.save_test_embeddings, silent = True)
 
     print(f'epoch {last_epoch} - test, {metrics_to_str(test_metrics)}')
 
     os.makedirs(predictions_dir, exist_ok = True)
 
-    with open(predictions_dir + '/test_embeddings.pickle', 'wb') as f:
-        test_embeddings = np.vstack(test_embeddings)
-        pickle.dump(test_embeddings, f)
+    if input_params.save_test_embeddings:
+        with open(predictions_dir + '/test_embeddings.pickle', 'wb') as f:
+            test_embeddings = np.vstack(test_embeddings)
+            pickle.dump(test_embeddings, f)
 
 print()
 print(f'peak GPU memory allocation: {round(torch.cuda.max_memory_allocated(device)/1024/1024)} Mb')

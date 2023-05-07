@@ -24,7 +24,7 @@ output_dir="$data_dir/fasta/"
 
 mkdir -p $output_dir
 
-output_fasta="$output_dir/Homo_sapiens.fa" 
+output_fasta="$output_dir/Homo_sapiens_no_reverse.fa" 
 
 true > $output_fasta
 
@@ -35,3 +35,5 @@ echo  ">$UTR_ID" >> $output_fasta #sequence header
 hal2fasta $hal_file Homo_sapiens --sequence $chrom --start $human_UTR_start --length $UTR_len  --lineWidth $LINE_WIDTH| tail -n +2 >> $output_fasta
 
 done <$utr_table
+
+samtools faidx $output_fasta
