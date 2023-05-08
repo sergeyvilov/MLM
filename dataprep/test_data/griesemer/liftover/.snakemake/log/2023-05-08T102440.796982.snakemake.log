@@ -1,0 +1,74 @@
+Building DAG of jobs...
+Using shell: /bin/bash
+Provided cores: 2
+Rules claiming more threads will be scaled down.
+Job stats:
+job                     count    min threads    max threads
+--------------------  -------  -------------  -------------
+all                         1              1              1
+extract_oligo_coords        1              1              1
+extract_var_coords          1              1              1
+liftover_oligo              1              1              1
+liftover_vars               1              1              1
+total                       5              1              1
+
+Select jobs to execute...
+
+[Mon May  8 10:24:42 2023]
+rule extract_var_coords:
+    input: /s/project/mll/sergey/effect_prediction/MLM/griesemer/paper_supplementary/Oligo_Variant_Info.txt
+    output: /s/project/mll/sergey/effect_prediction/MLM/griesemer/liftover/varpos_GRCh37.bed
+    jobid: 2
+    reason: Missing output files: /s/project/mll/sergey/effect_prediction/MLM/griesemer/liftover/varpos_GRCh37.bed
+    resources: tmpdir=/tmp
+
+
+[Mon May  8 10:24:42 2023]
+rule extract_oligo_coords:
+    input: /s/project/mll/sergey/effect_prediction/MLM/griesemer/paper_supplementary/Oligo_Variant_Info.txt
+    output: /s/project/mll/sergey/effect_prediction/MLM/griesemer/liftover/oligopos_GRCh37.bed
+    jobid: 4
+    reason: Missing output files: /s/project/mll/sergey/effect_prediction/MLM/griesemer/liftover/oligopos_GRCh37.bed
+    resources: tmpdir=/tmp
+
+[Mon May  8 10:24:42 2023]
+Finished job 2.
+1 of 5 steps (20%) done
+Select jobs to execute...
+
+[Mon May  8 10:24:42 2023]
+rule liftover_vars:
+    input: /s/project/mll/sergey/effect_prediction/MLM/griesemer/liftover/varpos_GRCh37.bed, /s/project/mll/sergey/effect_prediction/tools/liftOver/hg19ToHg38.over.chain.gz
+    output: /s/project/mll/sergey/effect_prediction/MLM/griesemer/liftover/varpos_GRCh38.bed, /s/project/mll/sergey/effect_prediction/MLM/griesemer/liftover/transcripts_canonocal_GRCh38.umap
+    log: /s/project/mll/sergey/effect_prediction/MLM/griesemer/logs/liftover.log
+    jobid: 1
+    reason: Missing output files: /s/project/mll/sergey/effect_prediction/MLM/griesemer/liftover/varpos_GRCh38.bed; Input files updated by another job: /s/project/mll/sergey/effect_prediction/MLM/griesemer/liftover/varpos_GRCh37.bed
+    resources: tmpdir=/tmp
+
+[Mon May  8 10:24:42 2023]
+Finished job 4.
+2 of 5 steps (40%) done
+Select jobs to execute...
+
+[Mon May  8 10:24:42 2023]
+rule liftover_oligo:
+    input: /s/project/mll/sergey/effect_prediction/MLM/griesemer/liftover/oligopos_GRCh37.bed, /s/project/mll/sergey/effect_prediction/tools/liftOver/hg19ToHg38.over.chain.gz
+    output: /s/project/mll/sergey/effect_prediction/MLM/griesemer/liftover/oligopos_GRCh38.bed, /s/project/mll/sergey/effect_prediction/MLM/griesemer/liftover/transcripts_canonocal_GRCh38.umap
+    log: /s/project/mll/sergey/effect_prediction/MLM/griesemer/logs/liftover.log
+    jobid: 3
+    reason: Missing output files: /s/project/mll/sergey/effect_prediction/MLM/griesemer/liftover/oligopos_GRCh38.bed; Input files updated by another job: /s/project/mll/sergey/effect_prediction/MLM/griesemer/liftover/oligopos_GRCh37.bed; Set of input files has changed since last execution
+    resources: tmpdir=/tmp
+
+[Mon May  8 10:24:42 2023]
+Finished job 1.
+3 of 5 steps (60%) done
+Removing temporary output /s/project/mll/sergey/effect_prediction/MLM/griesemer/liftover/transcripts_canonocal_GRCh38.umap.
+Waiting at most 5 seconds for missing files.
+MissingOutputException in rule liftover_oligo in file /data/nasif12/home_if12/l_vilov/workspace/species-aware-DNA-LM/dataprep/test_data/griesemer/liftover/Snakefile.py, line 58:
+Job 3  completed successfully, but some output files are missing. Missing files after 5 seconds. This might be due to filesystem latency. If that is the case, consider to increase the wait time with --latency-wait:
+/s/project/mll/sergey/effect_prediction/MLM/griesemer/liftover/transcripts_canonocal_GRCh38.umap
+Removing output files of failed job liftover_oligo since they might be corrupted:
+/s/project/mll/sergey/effect_prediction/MLM/griesemer/liftover/oligopos_GRCh38.bed
+Shutting down, this might take some time.
+Exiting because a job execution failed. Look above for error message
+Complete log: .snakemake/log/2023-05-08T102440.796982.snakemake.log

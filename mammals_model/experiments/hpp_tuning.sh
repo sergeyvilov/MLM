@@ -16,7 +16,7 @@
 
 source ~/.bashrc; conda activate svilov-spade
 
-test_name=6_layers
+test_name=seq_len_5000
 
 fasta='/s/project/mll/sergey/effect_prediction/MLM/fasta/240_mammals/240_mammals.shuffled.fa'
 
@@ -35,7 +35,7 @@ echo "Output dir: $output_dir"
 NN_PARAMETERS="${COMMON_NN_PARAMETERS}  \
 --fasta $fasta  --species_list $species_list --output_dir ${output_dir} \
 --save_at 2:11:3 --validate_every 1  \
---train_splits 4 --tot_epochs 11 --n_layers 6 --batch_size 256"
+--train_splits 4 --tot_epochs 11 --n_layers 4 --batch_size 128 --weight_decay 0 --seq_len 5000"
 
 echo "output dir = ${output_dir}"
 echo "NN parameters = ${NN_PARAMETERS}"

@@ -1,0 +1,64 @@
+Building DAG of jobs...
+Using shell: /bin/bash
+Provided cores: 2
+Rules claiming more threads will be scaled down.
+Job stats:
+job                     count    min threads    max threads
+--------------------  -------  -------------  -------------
+all                         1              1              1
+extract_oligo_coords        1              1              1
+extract_var_coords          1              1              1
+liftover_oligo              1              1              1
+liftover_vars               1              1              1
+total                       5              1              1
+
+Select jobs to execute...
+
+[Mon May  8 10:23:13 2023]
+rule extract_var_coords:
+    input: /s/project/mll/sergey/effect_prediction/MLM/griesemer/paper_supplementary/Oligo_Variant_Info.txt
+    output: /s/project/mll/sergey/effect_prediction/MLM/griesemer/liftover/varpos_GRCh37.bed
+    jobid: 2
+    reason: Code has changed since last execution
+    resources: tmpdir=/tmp
+
+
+[Mon May  8 10:23:13 2023]
+rule extract_oligo_coords:
+    input: /s/project/mll/sergey/effect_prediction/MLM/griesemer/paper_supplementary/Oligo_Variant_Info.txt
+    output: /s/project/mll/sergey/effect_prediction/MLM/griesemer/liftover/oligopos_GRCh37.bed
+    jobid: 4
+    reason: Missing output files: /s/project/mll/sergey/effect_prediction/MLM/griesemer/liftover/oligopos_GRCh37.bed
+    resources: tmpdir=/tmp
+
+[Mon May  8 10:23:13 2023]
+Error in rule extract_var_coords:
+    jobid: 2
+    input: /s/project/mll/sergey/effect_prediction/MLM/griesemer/paper_supplementary/Oligo_Variant_Info.txt
+    output: /s/project/mll/sergey/effect_prediction/MLM/griesemer/liftover/varpos_GRCh37.bed
+    shell:
+        
+        tail -n +2 /s/project/mll/sergey/effect_prediction/MLM/griesemer/paper_supplementary/Oligo_Variant_Info.txt | grep  -v NA | awk 'BEGIN{OFS="\t"}{print $5,$9-1,$10,$4,".",$8}' \
+        | sort -k1,1 -k2,2n | uniq | sed -e 's/^/chr/' -e 's/chrMT/chrM/'  > /s/project/mll/sergey/effect_prediction/MLM/griesemer/liftover/varpos_GRCh37.bed
+        
+        (one of the commands exited with non-zero exit code; note that snakemake uses bash strict mode!)
+
+Removing output files of failed job extract_var_coords since they might be corrupted:
+/s/project/mll/sergey/effect_prediction/MLM/griesemer/liftover/varpos_GRCh37.bed
+[Mon May  8 10:23:13 2023]
+Error in rule extract_oligo_coords:
+    jobid: 4
+    input: /s/project/mll/sergey/effect_prediction/MLM/griesemer/paper_supplementary/Oligo_Variant_Info.txt
+    output: /s/project/mll/sergey/effect_prediction/MLM/griesemer/liftover/oligopos_GRCh37.bed
+    shell:
+        
+        tail -n +2 /s/project/mll/sergey/effect_prediction/MLM/griesemer/paper_supplementary/Oligo_Variant_Info.txt | grep  -v NA | grep -v ','|awk 'BEGIN{OFS="\t"}{print $5,$6-1,$7,$3,".",$8}' \
+        | sort -k1,1 -k2,2n | uniq | sed -e 's/^/chr/' -e 's/chrMT/chrM/'  > /s/project/mll/sergey/effect_prediction/MLM/griesemer/liftover/oligopos_GRCh37.bed
+        
+        (one of the commands exited with non-zero exit code; note that snakemake uses bash strict mode!)
+
+Removing output files of failed job extract_oligo_coords since they might be corrupted:
+/s/project/mll/sergey/effect_prediction/MLM/griesemer/liftover/oligopos_GRCh37.bed
+Shutting down, this might take some time.
+Exiting because a job execution failed. Look above for error message
+Complete log: .snakemake/log/2023-05-08T102312.515268.snakemake.log
