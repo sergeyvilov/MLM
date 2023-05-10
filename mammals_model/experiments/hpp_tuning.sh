@@ -16,7 +16,7 @@
 
 source ~/.bashrc; conda activate svilov-spade
 
-test_name=seq_len_5000
+test_name=seq_len_5000_2
 
 fasta='/s/project/mll/sergey/effect_prediction/MLM/fasta/240_mammals/240_mammals.shuffled.fa'
 

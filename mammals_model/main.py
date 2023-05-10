@@ -32,7 +32,7 @@ parser.add_argument("--optimizer_weight", help = "initialization weight of the o
 parser.add_argument("--val_fraction", help = "fraction of validation dataset to use", type = float, default = 0.1, required = False)
 parser.add_argument("--validate_every", help = "validate every N epochs", type = int,  default = 1, required = False)
 parser.add_argument("--test", help = "model to inference mode", action='store_true', default = False, required = False)
-parser.add_argument("--save_test_embeddings", help = "save embeddings at test", action='store_true', default = False, required = False)
+parser.add_argument("--get_embeddings", help = "save embeddings at test", action='store_true', default = False, required = False)
 parser.add_argument("--seq_len", help = "max UTR sequence length", type = int, default = 2000, required = False)
 parser.add_argument("--train_splits", help = "split each epoch into N epochs", type = int, default = 4, required = False)
 parser.add_argument("--tot_epochs", help = "total number of training epochs, (after splitting)", type = int, default = 200, required = False)
@@ -40,6 +40,7 @@ parser.add_argument("--d_model", help = "model dimensions", type = int, default 
 parser.add_argument("--n_layers", help = "number of layers", type = int, default = 4, required = False)
 parser.add_argument("--batch_size", help = "batch size", type = int, default = 512, required = False)
 parser.add_argument("--learning_rate", help = "learning rate", type = float, default = 1e-4, required = False)
+parser.add_argument("--dropout", help = "model dropout", type = float, default = 0., required = False)
 parser.add_argument("--weight_decay", help = "Adam weight decay", type = float, default = 5e-4, required = False)
 parser.add_argument("--save_at", help = "epochs to save model/optimizer weights, 1-based", nargs='+', type = str, default = [], required = False)
 
@@ -51,11 +52,11 @@ input_params.save_at = misc.list2range(input_params.save_at)
 
 for param_name in ['output_dir', '\\',
 'fasta', 'species_list', '\\',
-'test', 'save_test_embeddings', '\\',
+'test', 'get_embeddings', '\\',
 'seq_len', '\\',
 'tot_epochs', 'save_at', 'train_splits', '\\',
 'val_fraction', 'validate_every', '\\',
-'d_model', 'n_layers', '\\',               
+'d_model', 'n_layers', 'dropout', '\\',               
 'model_weight', 'optimizer_weight', '\\',
 'batch_size', 'learning_rate', 'weight_decay', '\\',
 ]:
@@ -112,9 +113,12 @@ species_encoding['Homo_sapiens'] = species_encoding['Pan_troglodytes']
 seq_df['species_label'] = seq_df.species_name.map(species_encoding)
 
 
-seq_transform = sequence_encoders.SequenceDataEncoder(seq_len = input_params.seq_len, total_len = input_params.seq_len, mask_rate = 0.15, split_mask = True)
-
 if not input_params.test:
+    
+    #Train and Validate
+    
+    seq_transform = sequence_encoders.SequenceDataEncoder(seq_len = input_params.seq_len, total_len = input_params.seq_len, 
+                                                      mask_rate = 0.15, split_mask = True)
     
     N_train = int(len(seq_df)*(1-input_params.val_fraction))       
     train_df, test_df = seq_df.iloc[:N_train], seq_df.iloc[N_train:]
@@ -123,19 +127,34 @@ if not input_params.test:
     train_df['train_fold'] = train_fold[:N_train]
 
     train_dataset = SeqDataset(input_params.fasta, train_df, transform = seq_transform)
-    train_dataloader = DataLoader(dataset = train_dataset, batch_size = input_params.batch_size, num_workers = 16, collate_fn = None, shuffle = None)
+    train_dataloader = DataLoader(dataset = train_dataset, batch_size = input_params.batch_size, num_workers = 2, collate_fn = None, shuffle = False)
 
+    test_dataset = SeqDataset(input_params.fasta, test_df, transform = seq_transform)
+    test_dataloader = DataLoader(dataset = test_dataset, batch_size = input_params.batch_size, num_workers = 2, collate_fn = None, shuffle = False)
+
+elif input_params.get_embeddings:
+    
+    #Test and get sequence embeddings (MPRA)
+    
+    seq_transform = sequence_encoders.RollingMasker(mask_stride = 50, frame = 0)
+
+    test_dataset = SeqDataset(input_params.fasta, seq_df, transform = seq_transform)
+    test_dataloader = DataLoader(dataset = test_dataset, batch_size = 1, num_workers = 1, collate_fn = None, shuffle = False)
+    
 else:
-    seq_transform.frame = 0                  
-    test_df = seq_df
-                  
-test_dataset = SeqDataset(input_params.fasta, test_df, transform = seq_transform)
-test_dataloader = DataLoader(dataset = test_dataset, batch_size = input_params.batch_size, num_workers = 16, collate_fn = None, shuffle = None)
+    
+    #Test
+    
+    seq_transform = sequence_encoders.SequenceDataEncoder(seq_len = input_params.seq_len, total_len = input_params.seq_len, 
+                                                      mask_rate = 0.15, split_mask = True, frame = 0)
+    
+    test_dataset = SeqDataset(input_params.fasta, seq_df, transform = seq_transform)
+    test_dataloader = DataLoader(dataset = test_dataset, batch_size = input_params.batch_size, num_workers = 2, collate_fn = None, shuffle = False)
 
 species_encoder = SpecAdd(embed = True, encoder = 'label', d_model = input_params.d_model)
 
 model = DSSResNetEmb(d_input = 5, d_output = 5, d_model = input_params.d_model, n_layers = input_params.n_layers, 
-                     dropout = 0., embed_before = True, species_encoder = species_encoder)
+                     dropout = input_params.dropout, embed_before = True, species_encoder = species_encoder)
 
 model = model.to(device) 
 
@@ -205,16 +224,17 @@ else:
     print(f'EPOCH {last_epoch}: Test/Inference...')
 
     test_metrics, test_embeddings =  train_eval.model_eval(model, optimizer, test_dataloader, device, 
-                                                          save_embeddings = input_params.save_test_embeddings, silent = True)
+                                                          get_embeddings = input_params.get_embeddings, silent = False)
+    
+    
 
     print(f'epoch {last_epoch} - test, {metrics_to_str(test_metrics)}')
 
-    os.makedirs(predictions_dir, exist_ok = True)
+    os.makedirs(input_params.output_dir, exist_ok = True)
 
-    if input_params.save_test_embeddings:
-        with open(predictions_dir + '/test_embeddings.pickle', 'wb') as f:
-            test_embeddings = np.vstack(test_embeddings)
-            pickle.dump(test_embeddings, f)
+    with open(input_params.output_dir + '/embeddings.npy', 'wb') as f:
+        test_embeddings = np.vstack(test_embeddings)
+        np.save(f, test_embeddings)
 
 print()
 print(f'peak GPU memory allocation: {round(torch.cuda.max_memory_allocated(device)/1024/1024)} Mb')
