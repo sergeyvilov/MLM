@@ -10,13 +10,13 @@
 #SBATCH -J MLM_default
 #SBATCH --gres=gpu:1
 #SBATCH -c 16
-#SBATCH --mem=60G
+#SBATCH --mem=100G
 #SBATCH -o /s/project/mll/sergey/effect_prediction/MLM/nnc_logs/slurm_logs/%a.o
 #SBATCH -e /s/project/mll/sergey/effect_prediction/MLM/nnc_logs/slurm_logs/%a.e
 
 source ~/.bashrc; conda activate svilov-spade
 
-test_name=seq_len_5000_2
+test_name=seq_len_5000_256
 
 fasta='/s/project/mll/sergey/effect_prediction/MLM/fasta/240_mammals/240_mammals.shuffled.fa'
 
@@ -35,7 +35,7 @@ echo "Output dir: $output_dir"
 NN_PARAMETERS="${COMMON_NN_PARAMETERS}  \
 --fasta $fasta  --species_list $species_list --output_dir ${output_dir} \
 --save_at 2:11:3 --validate_every 1  \
---train_splits 4 --tot_epochs 11 --n_layers 4 --batch_size 128 --weight_decay 0 --seq_len 5000"
+--train_splits 4 --tot_epochs 11 --n_layers 4 --batch_size 512 --weight_decay 0 --seq_len 5000 --d_model 256"
 
 echo "output dir = ${output_dir}"
 echo "NN parameters = ${NN_PARAMETERS}"
