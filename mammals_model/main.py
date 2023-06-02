@@ -33,15 +33,15 @@ parser.add_argument("--val_fraction", help = "fraction of validation dataset to 
 parser.add_argument("--validate_every", help = "validate every N epochs", type = int,  default = 1, required = False)
 parser.add_argument("--test", help = "model to inference mode", action='store_true', default = False, required = False)
 parser.add_argument("--get_embeddings", help = "save embeddings at test", action='store_true', default = False, required = False)
-parser.add_argument("--seq_len", help = "max UTR sequence length", type = int, default = 2000, required = False)
+parser.add_argument("--seq_len", help = "max UTR sequence length", type = int, default = 5000, required = False)
 parser.add_argument("--train_splits", help = "split each epoch into N epochs", type = int, default = 4, required = False)
-parser.add_argument("--tot_epochs", help = "total number of training epochs, (after splitting)", type = int, default = 200, required = False)
+parser.add_argument("--tot_epochs", help = "total number of training epochs, (after splitting)", type = int, default = 11, required = False)
 parser.add_argument("--d_model", help = "model dimensions", type = int, default = 128, required = False)
 parser.add_argument("--n_layers", help = "number of layers", type = int, default = 4, required = False)
-parser.add_argument("--batch_size", help = "batch size", type = int, default = 512, required = False)
+parser.add_argument("--batch_size", help = "batch size", type = int, default = 128, required = False)
 parser.add_argument("--learning_rate", help = "learning rate", type = float, default = 1e-4, required = False)
 parser.add_argument("--dropout", help = "model dropout", type = float, default = 0., required = False)
-parser.add_argument("--weight_decay", help = "Adam weight decay", type = float, default = 5e-4, required = False)
+parser.add_argument("--weight_decay", help = "Adam weight decay", type = float, default = 0., required = False)
 parser.add_argument("--save_at", help = "epochs to save model/optimizer weights, 1-based", nargs='+', type = str, default = [], required = False)
 
 input_params = vars(parser.parse_args())
@@ -224,17 +224,17 @@ else:
     print(f'EPOCH {last_epoch}: Test/Inference...')
 
     test_metrics, test_embeddings =  train_eval.model_eval(model, optimizer, test_dataloader, device, 
-                                                          get_embeddings = input_params.get_embeddings, silent = False)
+                                                          get_embeddings = input_params.get_embeddings, silent = True)
     
     
 
     print(f'epoch {last_epoch} - test, {metrics_to_str(test_metrics)}')
 
-    os.makedirs(input_params.output_dir, exist_ok = True)
-
-    with open(input_params.output_dir + '/embeddings.npy', 'wb') as f:
-        test_embeddings = np.vstack(test_embeddings)
-        np.save(f, test_embeddings)
+    if input_params.get_embeddings:
+        os.makedirs(input_params.output_dir, exist_ok = True)
+        with open(input_params.output_dir + '/embeddings.npy', 'wb') as f:
+            test_embeddings = np.vstack(test_embeddings)
+            np.save(f, test_embeddings)
 
 print()
 print(f'peak GPU memory allocation: {round(torch.cuda.max_memory_allocated(device)/1024/1024)} Mb')
