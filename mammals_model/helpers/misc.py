@@ -67,3 +67,4 @@ def save_model_weights(model, optimizer, output_dir, epoch):
     torch.save(model.state_dict(), config_save_base+'_model') #save model weights
 
     torch.save(optimizer.state_dict(), config_save_base+'_optimizer') #save optimizer weights
+    
