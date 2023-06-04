@@ -183,8 +183,10 @@ for round_idx, (train_idx, test_idx) in enumerate(gss.split(X, y, groups)):
                                               sklearn.svm.SVR(**best_hpp))
         
         pipe.fit(X_train,y_train)
+
+        y_pred = pipe.predict(X_test)
                     
-        cv_res[round_idx,test_idx] = pipe.predict(X_test) 
+        cv_res[round_idx,test_idx] = y_pred
         
         cv_scores.append({'round':round_idx,'r2':sklearn.metrics.r2_score(y_test,y_pred)}|best_hpp)
         
@@ -200,6 +202,7 @@ cv_scores.to_csv(input_params.output_dir + '/cv_scores.tsv', sep='\t', index=Non
 
 with open(input_params.output_dir + '/cv_res.npy', 'wb') as f:
     np.save(f, cv_res) #save predictions at each round
+    np.save(f, y)
 
 
 # In[ ]:

@@ -28,7 +28,7 @@ for cell_type in HMEC HEK293FT HEPG2 K562 GM12878 SKNSH; do
             output_dir="$svr_dir/$cell_type/$model"
 
             params="--cell_type $cell_type --model $model --output_dir $output_dir \
-            --N_trials 1000 --keep_first --N_splits 500 --N_CVsplits 5 --seed 1"
+            --N_trials 1000 --keep_first --N_splits 1000 --N_CVsplits 5 --seed 1"
 
             mkdir -p $output_dir
 
