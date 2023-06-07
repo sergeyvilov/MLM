@@ -53,6 +53,7 @@ class GroupBaggedRegressor():
 from torch import nn
 from torch.optim import AdamW
 import torch
+import numpy as np
 
 class MLPRegressor():
     def __init__(self, hidden_layer_sizes=(64,32,16,), 
@@ -84,7 +85,7 @@ class MLPRegressor():
     def scorer(self, y_true, y_pred):
         y_true = y_true.detach().numpy()[:,0]
         y_pred = y_pred.detach().numpy()[:,0]
-        return pearson_r(y_true, y_pred) ** 2 
+        return sklearn.metrics.r2_score(y_true, y_pred) ** 2 
     
     def fit(self, X_train, y_train, X_val=None, y_val=None):
         
