@@ -5,7 +5,7 @@
 #Run SVR on Griesemer MPRA data
 #
 #
-#sbatch --array=0-29%10 run_svr.sh
+#sbatch --array=0-41%10 run_svr.sh
 #################################################################
 
 #SBATCH -J mpra_svr
@@ -20,8 +20,8 @@ svr_dir='/s/project/mll/sergey/effect_prediction/MLM/griesemer/SVR/skew_pred'
 c=0
 
 for cell_type in HMEC HEK293FT HEPG2 K562 GM12878 SKNSH; do
-
-    for model in MLM 4mers 5mers word2vec griesemer; do
+    
+    for model in MLM 4mers 5mers word2vec griesemer enformer_all_targets enformer_summary; do
     
         if [ ${SLURM_ARRAY_TASK_ID} -eq $c ]; then
         

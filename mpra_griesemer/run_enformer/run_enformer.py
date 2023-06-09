@@ -31,8 +31,8 @@ N_bins = 896 #Number of Enformer output bins
 # In[4]:
 
 
-start_row = sys.argv[1]
-stop_row = sys.argv[2]
+start_row = int(sys.argv[1])
+stop_row = int(sys.argv[2])
 
 
 # In[5]:

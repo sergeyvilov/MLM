@@ -6,6 +6,7 @@
 
 import numpy as np
 import pandas as pd
+import pickle
 
 import os
 import sys
@@ -52,7 +53,7 @@ parser.add_argument("--output_dir", help = 'output folder', type = str, required
 
 parser.add_argument("--N_trials", help = "number of optuna trials", type = int, default = 100, required = False)
 
-parser.add_argument("--n_jobs", help = "number of CPU cores", default = 16, required = False)
+parser.add_argument("--n_jobs", help = "number of CPU cores", default = 16, type = int, required = False)
 
 parser.add_argument("--N_splits", help = "number of GroupShuffleSplits", type = int, default = 200, required = False)
 
@@ -90,13 +91,32 @@ mpra_df = mpra_df[~flt]
 #Expression column to float
 mpra_df['Expression'] = mpra_df[f'log2FoldChange_Skew_{input_params.cell_type}']
 
-mpra_df['seqtype'] = mpra_df.apply(lambda x: 'REF' if x.oligo_id.endswith('_ref') else 'ALT',axis=1)
+mpra_df['tag'] = mpra_df.apply(lambda x: 'ref' if x.oligo_id.endswith('_ref') else 'alt',axis=1)
 
-assert (mpra_df.loc[mpra_df.seqtype=='REF','mpra_variant_id'].values==\
-         mpra_df.loc[mpra_df.seqtype=='ALT','mpra_variant_id'].values).mean()==1
+assert all(mpra_df.loc[mpra_df.tag=='ref','mpra_variant_id'].values==
+         mpra_df.loc[mpra_df.tag=='alt','mpra_variant_id'].values)
     
 mpra_df.Expression = mpra_df.Expression.apply(lambda x:x.replace(',','.') if type(x)==str else x).astype(float)
 
+enformer_dir = data_dir + 'enformer/predictions/'
+
+data = {}
+
+for pickle_file in os.listdir(enformer_dir):
+    with open(enformer_dir+pickle_file,'rb') as f:
+        data = data|pickle.load(f)
+        
+enformer_df = pd.DataFrame(data).T
+
+idx = mpra_df.set_index(['mpra_variant_id','tag']).index
+
+enformer_df = enformer_df.loc[idx].swaplevel() #get variants in exactly the same order as in mpra_df
+
+enformer_log2fc = np.log2(enformer_df.loc['alt']/enformer_df.loc['ref']) #log2fc for all targets
+
+enformer_log2fc = enformer_log2fc.fillna(enformer_log2fc.median())
+
+assert all(enformer_log2fc.index==mpra_df[mpra_df.tag=='alt'].mpra_variant_id)
 
 # In[7]:
 
@@ -126,12 +146,42 @@ def get_embeddings(mpra_df):
     
     return X
 
-X_ref = get_embeddings(mpra_df[mpra_df.seqtype=='REF'])
-X_alt = get_embeddings(mpra_df[mpra_df.seqtype=='ALT'])
+def get_enformer_matrix(model):
+ 
+    dnase_all_idx = np.array(np.arange(0,674)) 
 
-X = np.hstack((X_ref,X_alt))
-y = mpra_df.loc[mpra_df.seqtype=='ALT', 'Expression'].values
-groups = mpra_df.loc[mpra_df.seqtype=='ALT', 'group'].values
+    cage_all_idx = np.array(np.arange(4675,5313)) 
+
+    chipseq_all_idx = np.array(np.arange(674,4675)) 
+
+    if model == 'enformer_all_targets':
+        
+        X = enformer_log2fc.values
+        
+    elif model == 'enformer_summary':
+        
+        X = np.vstack((enformer_log2fc[dnase_all_idx].mean(axis=1),
+                       enformer_log2fc[cage_all_idx].mean(axis=1),
+                         enformer_log2fc[cage_all_idx].mean(axis=1))).T
+        
+    X = np.hstack((X,np.expand_dims(mpra_df[mpra_df.tag=='alt'].min_free_energy.values,axis=1),
+    np.expand_dims(mpra_df[mpra_df.tag=='ref'].min_free_energy.values,axis=1)))
+    
+    return X
+
+if not 'enformer' in input_params.model:
+    
+    X_ref = get_embeddings(mpra_df[mpra_df.tag=='ref'])
+    X_alt = get_embeddings(mpra_df[mpra_df.tag=='alt'])
+
+    X = np.hstack((X_ref,X_alt))
+    
+else:
+    
+    X = get_enformer_matrix(input_params.model)
+    
+y = mpra_df.loc[mpra_df.tag=='alt', 'Expression'].values
+groups = mpra_df.loc[mpra_df.tag=='alt', 'group'].values
 
 
 # In[8]:
