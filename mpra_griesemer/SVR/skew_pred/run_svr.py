@@ -29,7 +29,7 @@ sys.path.append("/data/ouga/home/ag_gagneur/l_vilov/workspace/species-aware-DNA-
 from models import *
 from misc import dotdict
 
-import multiprocessing
+from multiprocessing import Pool
 
 # In[2]:
 
@@ -53,7 +53,7 @@ parser.add_argument("--output_dir", help = 'output folder', type = str, required
 
 parser.add_argument("--N_trials", help = "number of optuna trials", type = int, default = 100, required = False)
 
-parser.add_argument("--n_jobs", help = "number of CPU cores", default = 16, type = int, required = False)
+parser.add_argument("--n_jobs", help = "number of CPU cores", default = 8, type = int, required = False)
 
 parser.add_argument("--N_splits", help = "number of GroupShuffleSplits", type = int, default = 200, required = False)
 
@@ -232,31 +232,47 @@ train_idx, test_idx = next(iter(gss.split(X, y, groups)))
 
 X_train, X_test, y_train, y_test = X[train_idx,:],X[test_idx,:],y[train_idx],y[test_idx] #first split
 
-best_hpp = hpp_search(X_train,y_train,groups[train_idx],cv_splits = input_params.N_CVsplits) #get optimal hyperparameters
+#best_hpp = hpp_search(X_train,y_train,groups[train_idx],cv_splits = input_params.N_CVsplits) #get optimal hyperparameters
+best_hpp = {'C': 0.03943153578419499, 'epsilon': 0.0712140417882623, 'gamma': 0.000232694021502066}
 
-def apply_SVR(train_idx, test_idx):
-    X_train, X_test, y_train, y_test = X[train_idx,:],X[test_idx,:],y[train_idx],y[test_idx]
+def apply_SVR(args):
+    
+    train_idx, test_idx = args
+
     pipe = sklearn.pipeline.make_pipeline(sklearn.preprocessing.StandardScaler(),
                                               sklearn.svm.SVR(**best_hpp))
-    pipe.fit(X_train,y_train)  
+    pipe.fit(X[train_idx,:],y[train_idx])  
     
     y_pred = np.full_like(y,np.NaN)
     
-    y_pred[test_idx] = pipe.predict(X_test)  
+    y_pred[test_idx] = pipe.predict(X[test_idx,:])  
     
     r2 = sklearn.metrics.r2_score(y[test_idx], y_pred[test_idx])
+    
+    print('done')
 
     return y_pred, r2
  
-def svr_parallel():
-    '''
-    Perform multiple train/test splits and run classifier in an asynchronous parallel loop
-    '''
-    pool = multiprocessing.Pool(input_params.n_jobs)
-    result = pool.starmap(apply_SVR, gss.split(X, y, groups))
-    return result
+def run_pool():
+    
+    all_res = []
+    
+    pool = Pool(processes=input_params.n_jobs,maxtasksperchild=5)
 
-all_res = svr_parallel()
+    #for train_idx, test_idx in gss.split(X,y,groups):
+    #    pool.apply_async(apply_SVR,args =  (train_idx,test_idx), callback=log_result)
+    
+    for res in pool.imap(apply_SVR,gss.split(X,y,groups)):
+        all_res.append(res)
+     
+    pool.close()
+    pool.join()
+    
+    return all_res
+
+print('running parallel')
+
+all_res = run_pool()
 
 preds, scores = zip(*all_res)
 
