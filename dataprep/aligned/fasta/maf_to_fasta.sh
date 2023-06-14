@@ -23,7 +23,7 @@ else
         line=$(echo $line|tr 'ACTGactg-' 'TGACtgac-'|rev)
     fi
     
-    echo $line|tr '-' 'N'|fold -w $LINE_WIDTH
+    echo $line|fold -w $LINE_WIDTH
     
 fi
 
