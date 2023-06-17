@@ -6,6 +6,7 @@
 
 import numpy as np
 import pandas as pd
+import pickle
 
 import os
 import sys
@@ -27,6 +28,8 @@ sys.path.append("/data/ouga/home/ag_gagneur/l_vilov/workspace/species-aware-DNA-
 
 from models import *
 from misc import dotdict
+from multiprocessing import Pool
+import scipy
 
 
 # In[2]:
@@ -46,6 +49,8 @@ input_params = dotdict({})
 parser.add_argument("--model", help = 'embedding name, can be "MLM" "word2vec" "griesemer" or "Nmers" where N is an integer', type = str, required = True)
 
 parser.add_argument("--output_dir", help = 'output folder', type = str, required = True)
+
+parser.add_argument("--n_jobs", help = "number of CPU cores", default = 8, type = int, required = False)
 
 parser.add_argument("--N_trials", help = "number of optuna trials", type = int, default = 100, required = False)
 
@@ -99,6 +104,20 @@ y = mpra_df['Expression'].values
 
 
 # In[7]:
+def apply_SVR(args):
+        
+    fold_idx, test_hpp = args 
+
+    test_idx = mpra_df[mpra_df.Fold==str(fold_idx)].index
+    train_idx = mpra_df[(mpra_df.Fold!=str(fold_idx))&(mpra_df.Fold!='Test')].index
+
+    pipe = sklearn.pipeline.make_pipeline(sklearn.preprocessing.StandardScaler(),
+                                                  sklearn.svm.SVR(**test_hpp))
+    pipe.fit(X[train_idx],y[train_idx])
+
+    R2_score = pipe.score(X[test_idx],y[test_idx])
+        
+    return R2_score
 
 
 def hpp_search(X,y, mpra_df, cv_splits = 10):
@@ -111,28 +130,28 @@ def hpp_search(X,y, mpra_df, cv_splits = 10):
     The hyperparameter range should first be adjused with grid search to make the BO algorithm converge in reasonable time
     '''
 
+
     def objective(trial):
 
         C = trial.suggest_float("C", 1e-4, 1e4, log=True)
         epsilon = trial.suggest_float("epsilon", 1e-5, 1, log=True)
         gamma = trial.suggest_float("gamma", 1e-5, 1, log=True)
 
-        clf = sklearn.svm.SVR(C=C, epsilon=epsilon, gamma=gamma)
-
-        pipe = sklearn.pipeline.make_pipeline(sklearn.preprocessing.StandardScaler(),clf)
+        test_hpp = {'C':C, 'epsilon':epsilon, 'gamma':gamma}
         
-        cv_score = 0
+        pool = Pool(processes=input_params.n_jobs,maxtasksperchild=5)
 
-        for fold_idx in range(cv_splits):
-
-            test_idx = mpra_df[mpra_df.Fold==str(fold_idx)].index
-            train_idx = mpra_df[(mpra_df.Fold!=str(fold_idx))&(mpra_df.Fold!='Test')].index
-
-            pipe.fit(X[train_idx],y[train_idx])
-
-            cv_score += pipe.score(X[test_idx],y[test_idx])
+        cv_scores = []
         
-        return cv_score/cv_splits
+        params = ((fold_idx, test_hpp) for fold_idx in range(cv_splits))
+        
+        for res in pool.imap(apply_SVR,params):
+            cv_scores.append(res)
+     
+        pool.close()
+        pool.join()
+    
+        return np.mean(cv_scores)
     
     study = optuna.create_study(direction = "maximize")
 
@@ -146,7 +165,6 @@ def hpp_search(X,y, mpra_df, cv_splits = 10):
 # In[8]:
 
 
-import scipy
 
 
 # In[9]:

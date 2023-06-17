@@ -44,13 +44,16 @@ while read -r chrom human_UTR_start human_UTR_end UTR_ID score strand transcript
     maf_file=$output_dir/tmp/${UTR_ID}.maf #temporary maf file
 
     echo "extracting alignment for $UTR_ID"
+    
+    fasta_size=$(stat -c %s $output_dir/3_prime_UTR/$run_idx/${UTR_ID}.fa)
 
-    hal2maf $hal_file  $maf_file --noAncestors --onlyOrthologs  --refGenome Homo_sapiens --refSequence $chrom --start $human_UTR_start --length $length  
+    #hal2maf $hal_file  $maf_file --noAncestors --onlyOrthologs  --refGenome Homo_sapiens --refSequence $chrom --start $human_UTR_start --length $length  
 
     echo "converting to FASTA"
 
+    if [ "$fasta_size" = 0 ] && [ -f "$maf_file" ];then
     ./maf_to_fasta.sh ${UTR_ID} $length $strand $maf_file > $output_dir/3_prime_UTR/$run_idx/${UTR_ID}.fa #take reverse complement for genes on negative strand
 
     samtools faidx $output_dir/3_prime_UTR/$run_idx/${UTR_ID}.fa && rm $maf_file
-
+    fi
 done < <(cat  $utr_table|sed -n "${start_idx},${stop_idx}p")

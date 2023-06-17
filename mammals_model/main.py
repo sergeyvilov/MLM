@@ -32,6 +32,7 @@ parser.add_argument("--optimizer_weight", help = "initialization weight of the o
 parser.add_argument("--val_fraction", help = "fraction of validation dataset to use", type = float, default = 0.1, required = False)
 parser.add_argument("--validate_every", help = "validate every N epochs", type = int,  default = 1, required = False)
 parser.add_argument("--test", help = "model to inference mode", action='store_true', default = False, required = False)
+parser.add_argument("--species_agnostic", help = "use a pecies agnostic version", action='store_true', default = False, required = False)
 parser.add_argument("--get_embeddings", help = "save embeddings at test", action='store_true', default = False, required = False)
 parser.add_argument("--seq_len", help = "max UTR sequence length", type = int, default = 5000, required = False)
 parser.add_argument("--train_splits", help = "split each epoch into N epochs", type = int, default = 4, required = False)
@@ -51,7 +52,7 @@ input_params = misc.dotdict(input_params)
 input_params.save_at = misc.list2range(input_params.save_at)
 
 for param_name in ['output_dir', '\\',
-'fasta', 'species_list', '\\',
+'fasta', 'species_list', 'species_agnostic', '\\',
 'test', 'get_embeddings', '\\',
 'seq_len', '\\',
 'tot_epochs', 'save_at', 'train_splits', '\\',
@@ -108,7 +109,12 @@ torch.cuda.empty_cache()
 seq_df = pd.read_csv(input_params.fasta + '.fai', header=None, sep='\t', usecols=[0], names=['seq_name'])
 seq_df['species_name'] = seq_df.seq_name.apply(lambda x:x.split(':')[1])
 species_encoding = pd.read_csv(input_params.species_list, header=None).squeeze().to_dict()
-species_encoding = {species:idx for idx,species in species_encoding.items()}
+
+if not input_params.species_agnostic:
+    species_encoding = {species:idx for idx,species in species_encoding.items()}
+else:
+    species_encoding = {species:0 for _,species in species_encoding.items()}
+    
 species_encoding['Homo_sapiens'] = species_encoding['Pan_troglodytes']
 seq_df['species_label'] = seq_df.species_name.map(species_encoding)
 
