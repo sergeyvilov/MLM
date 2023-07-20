@@ -34,6 +34,7 @@ parser.add_argument("--validate_every", help = "validate every N epochs", type =
 parser.add_argument("--test", help = "model to inference mode", action='store_true', default = False, required = False)
 parser.add_argument("--species_agnostic", help = "use a pecies agnostic version", action='store_true', default = False, required = False)
 parser.add_argument("--get_embeddings", help = "save embeddings at test", action='store_true', default = False, required = False)
+parser.add_argument("--get_motif_acc", help = "get motif accuracy at test", action='store_true', default = False, required = False)
 parser.add_argument("--seq_len", help = "max UTR sequence length", type = int, default = 5000, required = False)
 parser.add_argument("--train_splits", help = "split each epoch into N epochs", type = int, default = 4, required = False)
 parser.add_argument("--tot_epochs", help = "total number of training epochs, (after splitting)", type = int, default = 11, required = False)
@@ -53,7 +54,7 @@ input_params.save_at = misc.list2range(input_params.save_at)
 
 for param_name in ['output_dir', '\\',
 'fasta', 'species_list', 'species_agnostic', '\\',
-'test', 'get_embeddings', '\\',
+'test', 'get_embeddings', 'get_motif_acc', '\\',
 'seq_len', '\\',
 'tot_epochs', 'save_at', 'train_splits', '\\',
 'val_fraction', 'validate_every', '\\',
@@ -67,14 +68,30 @@ for param_name in ['output_dir', '\\',
     else:
         print(f'{param_name.upper()}: {input_params[param_name]}')
 
+data_dir = '/s/project/mll/sergey/effect_prediction/MLM/'
+
+motifs = pd.read_excel(data_dir + 'dominguez_2018/1-s2.0-S1097276518303514-mmc4.xlsx',
+             sheet_name =1)
+
+motifs = motifs.iloc[1:,0::2].values.flatten() #select all motifs
+
+motifs_table = set(filter(lambda v: v==v, motifs)) #remove NaNs
+
+random_motifs = {'ACTCC', 'ACTTA', 'ATGTC', 'CCACA', 'TGACT', 'TTCCG', 'TTGGG', 'GTGTA', 'ACAGG', 'TCGTA'} #motifs which don't overlap with the table
+
+selected_motifs = motifs_table | random_motifs #union
+
+selected_motifs = {motif:motif_idx+1 for motif_idx,motif in enumerate(selected_motifs)} #{'ACCTG':1, 'GGTAA':2}
+
 class SeqDataset(Dataset):
     
-    def __init__(self, fasta_fa, seq_df, transform):
+    def __init__(self, fasta_fa, seq_df, transform, motifs = {}):
         
         self.fasta = pysam.FastaFile(fasta_fa)
         
         self.seq_df = seq_df
         self.transform = transform
+        self.motifs = motifs
         
     def __len__(self):
         
@@ -86,15 +103,21 @@ class SeqDataset(Dataset):
                 
         species_label = seq_df.iloc[idx].species_label
                 
-        masked_sequence, target_labels_masked, target_labels, mask, _ = self.transform(seq, motifs = {})
+        masked_sequence, target_labels_masked, target_labels, _, motif_mask = self.transform(seq, motifs = self.motifs)
         
         masked_sequence = (masked_sequence, species_label)
         
-        return masked_sequence, target_labels_masked, target_labels
+        #motif_ranges = []
+        
+        #for motif in selected_motifs:
+        #    for match in re.finditer(motif, seq):
+        #        motif_ranges.append((match.start(),match.end()))
+            
+        return masked_sequence, target_labels_masked, target_labels, motif_mask, seq
     
     def close(self):
         self.fasta.close()
-
+        
 if torch.cuda.is_available():
     device = torch.device('cuda')
     print('\nCUDA device: GPU\n')
@@ -138,13 +161,18 @@ if not input_params.test:
     test_dataset = SeqDataset(input_params.fasta, test_df, transform = seq_transform)
     test_dataloader = DataLoader(dataset = test_dataset, batch_size = input_params.batch_size, num_workers = 2, collate_fn = None, shuffle = False)
 
-elif input_params.get_embeddings:
+elif input_params.get_embeddings or input_params.get_motif_acc:
     
     #Test and get sequence embeddings (MPRA)
     
     seq_transform = sequence_encoders.RollingMasker(mask_stride = 50, frame = 0)
 
-    test_dataset = SeqDataset(input_params.fasta, seq_df, transform = seq_transform)
+    if input_params.get_motif_acc:
+        motifs = selected_motifs
+    else:
+        motifs = {}
+        
+    test_dataset = SeqDataset(input_params.fasta, seq_df, transform = seq_transform, motifs = selected_motifs)
     test_dataloader = DataLoader(dataset = test_dataset, batch_size = 1, num_workers = 1, collate_fn = None, shuffle = False)
     
 else:
@@ -229,18 +257,32 @@ else:
 
     print(f'EPOCH {last_epoch}: Test/Inference...')
 
-    test_metrics, test_embeddings =  train_eval.model_eval(model, optimizer, test_dataloader, device, 
-                                                          get_embeddings = input_params.get_embeddings, silent = True)
+    test_metrics, test_embeddings, motif_probas =  train_eval.model_eval(model, optimizer, test_dataloader, device, 
+                                                          get_embeddings = input_params.get_embeddings, 
+                                                          get_motif_acc = input_params.get_motif_acc, 
+                                                          selected_motifs = selected_motifs, silent = True)
     
     
 
     print(f'epoch {last_epoch} - test, {metrics_to_str(test_metrics)}')
 
     if input_params.get_embeddings:
+        
         os.makedirs(input_params.output_dir, exist_ok = True)
+
         with open(input_params.output_dir + '/embeddings.npy', 'wb') as f:
             test_embeddings = np.vstack(test_embeddings)
             np.save(f, test_embeddings)
+            
+    if input_params.get_motif_acc:
+        
+        os.makedirs(input_params.output_dir, exist_ok = True)
+
+        with open(input_params.output_dir + '/motif_probas.pickle', 'wb') as f:
+            pickle.dump(motif_probas, f) #seq_index,motif,motif_start,avg_target_proba
+
+        seq_df.seq_name.to_csv(input_params.output_dir + '/seq_index.csv') #save index seqeunce matchin for 1st column of motif_probas 
+
 
 print()
 print(f'peak GPU memory allocation: {round(torch.cuda.max_memory_allocated(device)/1024/1024)} Mb')
