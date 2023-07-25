@@ -9,8 +9,8 @@
 
 # SBATCH -J MLM_default
 # SBATCH --gres=gpu:1
-# SBATCH -c 2
-# SBATCH --mem=30G
+# SBATCH -c 16
+# SBATCH --mem=80G
 # SBATCH -o /s/project/mll/sergey/effect_prediction/MLM/nnc_logs/slurm_logs/test_human.o
 # SBATCH -e /s/project/mll/sergey/effect_prediction/MLM/nnc_logs/slurm_logs/test_himan.e
 

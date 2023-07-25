@@ -4,7 +4,7 @@ import numpy as np
 
 from torch import nn
 
-from tqdm.notebook import tqdm
+from tqdm import tqdm
 
 from helpers.metrics import MaskedAccuracy
 
@@ -115,16 +115,17 @@ def model_eval(model, optimizer, dataloader, device, get_embeddings = False, get
             total_acc += metric(preds, targets).detach()
                         
             if get_motif_acc:
-                
+                                
                 targets_masked = targets_masked.T.flatten()
                 logits = torch.permute(logits,(2,0,1)).reshape(-1,5).detach()
                     
-                masked_targets = targets_masked[targets_masked!=-100]#.cpu()
-                masked_logits = logits[targets_masked!=-100]
+                masked_targets = targets_masked[targets_masked!=-100].cpu()
+                masked_logits = logits[targets_masked!=-100].cpu()
                 
                 sm = log_softmax(masked_logits, dim=1)
                 target_probas = torch.gather(torch.exp(sm),-1, masked_targets.unsqueeze(1)).squeeze().numpy()
                 
+                #assert len(target_probas) == len(seq[0])
                 for motif in selected_motifs:
                     for match in re.finditer(motif, seq[0]):
                         avg_target_probas = target_probas[match.start():match.end()].mean()

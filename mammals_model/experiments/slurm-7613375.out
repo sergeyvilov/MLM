@@ -1,3 +1,0 @@
-Output dir: /s/project/mll/sergey/effect_prediction/MLM/nnc_logs//motif_predictions/species_aware/
-output dir = /s/project/mll/sergey/effect_prediction/MLM/nnc_logs//motif_predictions/species_aware/
-NN parameters =   --test --get_motif_acc --batch_size 1 --fasta /s/project/mll/sergey/effect_prediction/MLM/fasta/240_mammals/species/Homo_sapiens.fa  --species_list /s/project/mll/sergey/effect_prediction/MLM/fasta/240_mammals/240_species.txt --output_dir /s/project/mll/sergey/effect_prediction/MLM/nnc_logs//motif_predictions/species_aware/  --model_weight /s/project/mll/sergey/effect_prediction/MLM/nnc_logs/seq_len_5000/weights/epoch_11_weights_model
