@@ -125,16 +125,20 @@ def model_eval(model, optimizer, dataloader, device, get_embeddings = False, get
                 sm = log_softmax(masked_logits, dim=1)
                 target_probas = torch.gather(torch.exp(sm),-1, masked_targets.unsqueeze(1)).squeeze().numpy()
                 
-                #assert len(target_probas) == len(seq[0])
-                for motif in selected_motifs:
-                    for match in re.finditer(motif, seq[0]):
-                        avg_target_probas = target_probas[match.start():match.end()].mean()
-                        motif_probas.append((itr_idx, motif,match.start(),avg_target_probas))
+                seq_name = dataloader.dataset.seq_df.iloc[itr_idx].seq_name.split(':')[0]
                 
-                #for motif_start, motif_end in motif_ranges:
-                #    motif_start, motif_end = motif_start.numpy(), motif_end.numpy() 
-                #    avg_target_probas = target_probas[int(motif_start):int(motif_end)].mean()
-                #    motif_probas.append((itr_idx, motif_start, motif_end,avg_target_probas))
+                motif_probas.append((seq_name,target_probas))
+                
+                ##assert len(target_probas) == len(seq[0])
+                #for motif in selected_motifs:
+                #    for match in re.finditer(motif, seq[0]):
+                #        avg_target_probas = target_probas[match.start():match.end()].mean()
+                #        motif_probas.append((itr_idx, motif,match.start(),avg_target_probas))
+                
+                ##for motif_start, motif_end in motif_ranges:
+                ##    motif_start, motif_end = motif_start.numpy(), motif_end.numpy() 
+                ##    avg_target_probas = target_probas[int(motif_start):int(motif_end)].mean()
+                ##    motif_probas.append((itr_idx, motif_start, motif_end,avg_target_probas))
 
             if get_embeddings:
                 # only get embeddings of the masked nucleotide

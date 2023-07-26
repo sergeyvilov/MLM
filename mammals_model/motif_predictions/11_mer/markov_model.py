@@ -1,7 +1,6 @@
 import sys 
 
 sys.path.insert(0, '../..')
-
 import numpy as np
 from tqdm import tqdm
 import itertools
@@ -12,10 +11,8 @@ import torch
 
 from torch.nn.functional import nll_loss
 
-
 from encoding_utils.sequence_utils import * #seq_to_labels
 
-import pickle
 
 class KmerCount:
     
@@ -124,6 +121,8 @@ class BiMarkov(Markov):
     @classmethod
     def init_from_file(cls, file):
         markov_matrix = np.load(file)
+        #print(file)
+        #print(markov_matrix.shape[0])
         mkv = cls(KmerCount(markov_matrix.shape[0]*2 + 1))
         mkv.markov_matrix = markov_matrix
         return mkv
@@ -180,38 +179,28 @@ class BiMarkov(Markov):
 
 class MarkovModel():
 
-    # refactored this in comparison to the original code
-    def __init__(self,
-        kmercount: KmerCount,
+    def __init__(self, 
+        halflife_df_path: str,
+        markov_matrix_path: str,
         order: int,
-        bidirectional: bool,
-        test_df_path: str,
-        path: str):
+        bidirectional: bool) -> None:
 
-        self.test_df_path = test_df_path
-
-        self.order = order
-        self.bidirectional = bidirectional
-        self.path = path
-
+        self.halflife_df = pd.read_csv(halflife_df_path)
+        
         if bidirectional:
-            self.model = BiMarkov(kmercount)
-        else: 
-            self.model = MarkovChain(kmercount)
+            self.mkv = BiMarkov.init_from_file(markov_matrix_path)
+        else:
+            self.mkv = MarkovChain.init_from_file(markov_matrix_path)
+        self.order = order
         
 
     def test(self):
         prbs = []
         complete_string = ""
 
-        # refactored this in comparison to the original code
-        # testing is only done on the test data
-        with open(self.test_df_path, 'rb') as f:
-            test_df = pickle.load(f)
-
-        for _, row in test_df.iterrows():
-            prbs.append(self.model.impute_for_seq(row['3-UTR'], order=self.order))
-            complete_string += row['3-UTR']
+        for _,row in self.halflife_df.iterrows():
+            prbs.append(self.mkv.impute_for_seq(row["UTR3_seq"], order=self.order))
+            complete_string += row["UTR3_seq"]
 
         prbs = np.concatenate(prbs,axis=0)
         prbs = np.concatenate([prbs,np.zeros((prbs.shape[0],1))],axis=1)
@@ -221,17 +210,18 @@ class MarkovModel():
         targets = torch.tensor(seq_to_labels(complete_string))
 
         # compute cross entropy, it's already as probability so just nll
-        ce = nll_loss(prbs,targets, reduction="none")
+        ce = nll_loss(prbs,targets, reduction="none") #cross_entropy(prbs, targets)
 
-        # save everything needed for plotting
-        # no logits, so use prbs
-        torch.save(prbs, self.path + "masked_logits.pt")
-        torch.save(torch.argmax(prbs, dim=1), self.path + "masked_preds.pt")
-        torch.save(prbs, self.path + "prbs.pt")
-        torch.save(ce, self.path + "ce.pt")
+        #print(ce)
+
+        # save
+        torch.save(prbs, "masked_logits.pt") # no logits, so use prbs
+        torch.save(torch.argmax(prbs, dim=1), "masked_preds.pt")
+        torch.save(prbs, "prbs.pt")
+        torch.save(ce,"ce.pt")
 
         # save targets
-        torch.save(targets, self.path + "masked_targets.pt")
+        torch.save(targets, "masked_targets.pt")
 
         # save rest as placeholders (zeros of same length)
-        torch.save(torch.zeros(len(prbs)), self.path + "masked_motifs.pt")
+        torch.save(torch.zeros(len(prbs)),"masked_motifs.pt")

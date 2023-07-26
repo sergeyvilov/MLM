@@ -8,9 +8,9 @@ from transformers import Trainer
 
 from transformers import AutoTokenizer, AutoModelForMaskedLM, AutoConfig
 
-tokenizer = AutoTokenizer.from_pretrained("/s/project/mll/sergey/effect_prediction/MLM/baseline/dnabert/default/6-new-12w-0/")
+tokenizer = AutoTokenizer.from_pretrained("/s/project/mll/sergey/effect_prediction/MLM/dnabert/default/6-new-12w-0/")
 
-model = AutoModelForMaskedLM.from_pretrained("/s/project/mll/sergey/effect_prediction/MLM/baseline/dnabert/default/6-new-12w-0/")
+model = AutoModelForMaskedLM.from_pretrained("/s/project/mll/sergey/effect_prediction/MLM/dnabert/default/6-new-12w-0/")
 
 
 import torch 
@@ -29,8 +29,10 @@ import sys
 
 output_dir = sys.argv[1]#'/s/project/mll/sergey/effect_prediction/MLM/baseline/dnabert/default/predictions/'
 
-dataset_start = sys.argv[2]
-dataset_len = sys.argv[3]
+test_dataset = sys.argv[2]#'/s/project/mll/sergey/effect_prediction/MLM/motif_predictions/split_75_25/test.csv'
+
+dataset_start = int(sys.argv[3])
+dataset_len = int(sys.argv[4])
 
 
 print(f'Running inference for sequences {dataset_start}-{dataset_start+dataset_len}')
@@ -236,32 +238,14 @@ def extract_prbs_from_pred(prediction, pred_pos, token_pos, label_pos, label):
 # In[39]:
 
 
-human_fasta = '/s/project/mll/sergey/effect_prediction/MLM/fasta/240_mammals/species/Homo_sapiens.fa'
-
-from collections import defaultdict
-
-dataset = defaultdict(str)
-
-with open(human_fasta, 'r') as f:
-    for line in f:
-        if line.startswith('>'):
-            seq_name = line[1:].split(':')[0]
-        else:
-            dataset[seq_name] += line.rstrip().upper()
-
-
-# In[40]:
-
-
-dataset = pd.DataFrame(list(dataset.items()), columns=['seq_name','UTR3_seq'])
-
+dataset = pd.read_csv(test_dataset)
 
 # In[41]:
 
 
-dataset['seq_len'] = dataset['UTR3_seq'].apply(lambda x: len(x))
+dataset['seq_len'] = dataset['seq'].apply(lambda x: len(x))
 
-dataset['seq_chunked'] = dataset['UTR3_seq'].apply(lambda x : list(chunkstring(x, 510))) #chunk string in segments of 300
+dataset['seq_chunked'] = dataset['seq'].apply(lambda x : list(chunkstring(x, 510))) #chunk string in segments of 300
 
 
 # In[42]:
@@ -411,7 +395,7 @@ for no_of_index, tokenized_data in enumerate(data_loader):
 
 print('Saving predictions')
 
-dataset[['seq_name','seq_chunked']].to_csv(output_dir + f"/seq_{dataset_start}.csv", index=None)
+dataset[['seq','seq_chunked']].to_csv(output_dir + f"/seq_{dataset_start}.csv", index=None)
 
 
 # In[123]:
