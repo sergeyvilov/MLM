@@ -1,0 +1,37 @@
+Building DAG of jobs...
+Using shell: /bin/bash
+Provided cores: 2
+Rules claiming more threads will be scaled down.
+Job stats:
+job             count
+------------  -------
+all                 1
+extract_data        1
+total               2
+
+Select jobs to execute...
+
+[Fri Jul 28 12:21:17 2023]
+rule extract_data:
+    input: /s/project/mll/sergey/effect_prediction/MLM/clinvar/clinvar.utr.vcf.gz, /s/project/mll/sergey/effect_prediction/MLM/clinvar/clinvar.utr.vcf.gz.tbi
+    output: /s/project/mll/sergey/effect_prediction/MLM/clinvar/clinvar.3utr.tsv
+    jobid: 1
+    reason: Code has changed since last execution
+    resources: tmpdir=/tmp
+
+[Fri Jul 28 12:21:20 2023]
+Finished job 1.
+1 of 2 steps (50%) done
+Select jobs to execute...
+
+[Fri Jul 28 12:21:20 2023]
+localrule all:
+    input: /s/project/mll/sergey/effect_prediction/MLM/clinvar/clinvar.3utr.tsv
+    jobid: 0
+    reason: Input files updated by another job: /s/project/mll/sergey/effect_prediction/MLM/clinvar/clinvar.3utr.tsv
+    resources: tmpdir=/tmp
+
+[Fri Jul 28 12:21:20 2023]
+Finished job 0.
+2 of 2 steps (100%) done
+Complete log: .snakemake/log/2023-07-28T122113.529027.snakemake.log

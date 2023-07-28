@@ -1,0 +1,21 @@
+/data/nasif12/home_if12/l_vilov/workspace/enformer/promoter_mutations/extract_mutations/filter_mutations/Snakefile.py:17: FutureWarning: The default value of regex will change from True to False in a future version.
+  all_patients=pd.read_csv(vcf_list, names=['sample_ID', 'VCF_file'], sep=' ')['VCF_file'].str.replace('.vcf.gz','').unique()
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 2
+Rules claiming more threads will be scaled down.
+Provided resources: mem_mb=1000, mem_mib=954, disk_mb=1000, disk_mib=954
+Select jobs to execute...
+
+[Fri Jul 14 02:25:43 2023]
+rule annotate_counts:
+    input: /s/project/mll/sergey/effect_prediction/promoter_mutations/2000_left/passed/NovaSeq_Female_MLL_29679-M050_G1_P1.somatic.vcf.gz, /s/project/mll/sergey/effect_prediction/promoter_mutations/2000_left/passed/NovaSeq_Female_MLL_29679-M050_G1_P1.somatic.vcf.gz.tbi, headers/MLL_counts_header.txt
+    output: /s/project/mll/sergey/effect_prediction/promoter_mutations/2000_left/MLL_counts/NovaSeq_Female_MLL_29679-M050_G1_P1.somatic.vcf.gz, /s/project/mll/sergey/effect_prediction/promoter_mutations/2000_left/MLL_counts/NovaSeq_Female_MLL_29679-M050_G1_P1.somatic.vcf.gz.tbi
+    jobid: 0
+    reason: Missing output files: /s/project/mll/sergey/effect_prediction/promoter_mutations/2000_left/MLL_counts/NovaSeq_Female_MLL_29679-M050_G1_P1.somatic.vcf.gz, /s/project/mll/sergey/effect_prediction/promoter_mutations/2000_left/MLL_counts/NovaSeq_Female_MLL_29679-M050_G1_P1.somatic.vcf.gz.tbi
+    wildcards: patient=NovaSeq_Female_MLL_29679-M050_G1_P1.somatic
+    resources: mem_mb=1000, mem_mib=954, disk_mb=1000, disk_mib=954, tmpdir=/scratch/tmp/l_vilov
+
+[Fri Jul 14 02:26:20 2023]
+Finished job 0.
+1 of 1 steps (100%) done

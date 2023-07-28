@@ -395,7 +395,7 @@ for no_of_index, tokenized_data in enumerate(data_loader):
 
 print('Saving predictions')
 
-dataset[['seq','seq_chunked']].to_csv(output_dir + f"/seq_{dataset_start}.csv", index=None)
+dataset[['seq_name','seq']].drop_duplicates().to_csv(output_dir + f"/seq_{dataset_start}.csv", index=None)
 
 
 # In[123]:
