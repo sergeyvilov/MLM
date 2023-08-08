@@ -6,6 +6,10 @@ clinvar_vcf = '/s/project/mll/sergey/effect_prediction/tools/ClinVar/clinvar_202
 
 utr3_bed = '/s/project/mll/sergey/effect_prediction/MLM/UTR_coords/GRCh38_3_prime_UTR_clean-sorted.bed'
 
+PhyloP100_tsv='/s/project/mll/sergey/effect_prediction/tools/PhyloP/hg38.phyloP100way.tsv.gz'
+
+PhyloP241_tsv='/s/project/mll/sergey/effect_prediction/tools/PhyloP/241-mammalian-2020v2.tsv.gz'
+
 rule all:
     input:
         progress_dir + 'clinvar.3utr.tsv',
@@ -64,13 +68,53 @@ rule annotate_regions:
         tabix -f {output.vcf}
         '''
 
-rule extract_data:
+rule annotate_PhyloP100:
     input:
         vcf = progress_dir + 'clinvar.utr.vcf.gz',
         tbi = progress_dir + 'clinvar.utr.vcf.gz.tbi',
+        header = 'headers/PhyloP100_header.txt',
+        tsv = PhyloP100_tsv,
+    output:
+        vcf = progress_dir + 'clinvar.PhyloP100.vcf.gz',
+        tbi = progress_dir + 'clinvar.PhyloP100.vcf.gz.tbi',
+    shell:
+        r'''
+        bcftools annotate --threads 4 \
+        -h {input.header} \
+        -c 'CHROM,POS,PhyloP100' \
+        -a {input.tsv} \
+        {input.vcf} \
+        -Oz -o {output.vcf}
+        tabix -f {output.vcf}
+        '''
+
+rule annotate_PhyloP241:
+    input:
+        vcf = progress_dir + 'clinvar.PhyloP100.vcf.gz',
+        tbi = progress_dir + 'clinvar.PhyloP100.vcf.gz.tbi',
+        header = 'headers/PhyloP241_header.txt',
+        tsv = PhyloP241_tsv,
+    output:
+        vcf = progress_dir + 'clinvar.PhyloP241.vcf.gz',
+        tbi = progress_dir + 'clinvar.PhyloP241.vcf.gz.tbi',
+    shell:
+        r'''
+        bcftools annotate --threads 4 \
+        -h {input.header} \
+        -c 'CHROM,POS,PhyloP241' \
+        -a {input.tsv} \
+        {input.vcf} \
+        -Oz -o {output.vcf}
+        tabix -f {output.vcf}
+        '''
+
+rule extract_data:
+    input:
+        vcf = progress_dir + 'clinvar.PhyloP241.vcf.gz',
+        tbi = progress_dir + 'clinvar.PhyloP241.vcf.gz.tbi',
     output:
         tsv = progress_dir + 'clinvar.3utr.tsv',
     shell:
         r'''
-        bcftools query -i 'UTR3!="."' -f "%CHROM\t%POS\t%ID\t%REF\t%ALT\t%UTR3\t%CLNSIG\n" {input.vcf} > {output.tsv}
+        bcftools query -i 'UTR3!="."' -f "%CHROM\t%POS\t%ID\t%REF\t%ALT\t%UTR3\t%CLNSIG\t%PhyloP100\t%PhyloP241\n" {input.vcf} > {output.tsv}
         '''

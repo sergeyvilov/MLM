@@ -1,0 +1,24 @@
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 2
+Rules claiming more threads will be scaled down.
+Job stats:
+job               count
+--------------  -------
+all                   1
+intersect_utrs        1
+total                 2
+
+Select jobs to execute...
+
+[Mon Aug  7 22:03:46 2023]
+rule intersect_utrs:
+    input: /s/project/mll/sergey/effect_prediction/MLM/siegel_2022/regions_hg38/regions_GRCh38.liftover.bed, /s/project/mll/sergey/effect_prediction/MLM/UTR_coords/GRCh38_3_prime_UTR_clean.bed
+    output: /s/project/mll/sergey/effect_prediction/MLM/siegel_2022/regions_hg38/regions_3UTR_GRCh38.bed
+    jobid: 1
+    reason: Missing output files: /s/project/mll/sergey/effect_prediction/MLM/siegel_2022/regions_hg38/regions_3UTR_GRCh38.bed
+    resources: tmpdir=/scratch/tmp/l_vilov
+
+Waiting at most 5 seconds for missing files.
+Terminating processes on user request, this might take some time.
+Complete log: .snakemake/log/2023-08-07T220345.303043.snakemake.log

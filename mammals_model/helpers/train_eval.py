@@ -70,7 +70,7 @@ def model_train(model, optimizer, dataloader, device, silent=False):
     return smoothed_loss, total_acc/(itr_idx+1), masked_acc/(itr_idx+1) 
 
 
-def model_eval(model, optimizer, dataloader, device, get_embeddings = False, get_motif_acc=False, selected_motifs = None, silent=False):
+def model_eval(model, optimizer, dataloader, device, get_embeddings = False, get_motif_acc=False, temperature=None, selected_motifs = None, silent=False):
     
     criterion = torch.nn.CrossEntropyLoss(reduction = "mean")
 
@@ -104,6 +104,9 @@ def model_eval(model, optimizer, dataloader, device, get_embeddings = False, get
             species_label = species_label.long().to(device)
             
             logits, embeddings = model(masked_sequence, species_label)
+            
+            if temperature:
+                logits /= temperature
 
             loss = criterion(logits, targets_masked)
 
@@ -123,7 +126,10 @@ def model_eval(model, optimizer, dataloader, device, get_embeddings = False, get
                 masked_logits = logits[targets_masked!=-100].cpu()
                 
                 sm = log_softmax(masked_logits, dim=1)
-                target_probas = torch.gather(torch.exp(sm),-1, masked_targets.unsqueeze(1)).squeeze().numpy()
+                
+                #target_probas = torch.gather(torch.exp(sm),-1, masked_targets.unsqueeze(1)).squeeze().numpy() #probs only for true label
+                
+                target_probas = torch.exp(sm)[:,:4].numpy()#probs for all bases
                 
                 seq_name = dataloader.dataset.seq_df.iloc[itr_idx].seq_name.split(':')[0]
                 

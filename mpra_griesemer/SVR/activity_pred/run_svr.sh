@@ -13,9 +13,9 @@
 #SBATCH -o /s/project/mll/sergey/effect_prediction/MLM/griesemer/slurm_logs/%a.o
 #SBATCH -e /s/project/mll/sergey/effect_prediction/MLM/griesemer/slurm_logs/%a.e
 
-source ~/.bashrc; conda activate svilov-spade
+source ~/.bashrc; conda activate svilov-mlm
 
-svr_dir='/s/project/mll/sergey/effect_prediction/MLM/griesemer/SVR/activity_pred'
+svr_dir='/s/project/mll/sergey/effect_prediction/MLM/griesemer/SVR_LeaveGroupOut/activity_pred'
 
 c=0
 

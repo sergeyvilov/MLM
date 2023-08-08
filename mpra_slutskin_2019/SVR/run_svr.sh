@@ -5,7 +5,7 @@
 #Run SVR on Griesemer MPRA data
 #
 #
-#sbatch --array=0-3%10 run_svr.sh
+#sbatch --array=0-5%10 run_svr.sh
 #################################################################
 
 #SBATCH -J mpra_svr
@@ -14,7 +14,7 @@
 #SBATCH -o /s/project/mll/sergey/effect_prediction/MLM/griesemer/slurm_logs/%a.o
 #SBATCH -e /s/project/mll/sergey/effect_prediction/MLM/griesemer/slurm_logs/%a.e
 
-source ~/.bashrc; conda activate svilov-spade
+source ~/.bashrc; conda activate svilov-mlm
 
 svr_dir='/s/project/mll/sergey/effect_prediction/MLM/slutskin_2019/SVR/'
 

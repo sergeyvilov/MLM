@@ -164,15 +164,22 @@ def hpp_search(X,y,groups,cv_splits = 5):
 # In[ ]:
 
 
-cv_res = np.zeros((input_params.N_splits,len(y))) #predictions for each point in each split
+#cv_res = np.zeros((input_params.N_splits,len(y))) #predictions for each point in each split
+
+cv_res = np.zeros((len(set(groups)),len(y))) #predictions for each point in each split
+
 cv_res[:] = np.NaN 
 
 cv_scores = [] #scores and best hyperparameters for each split
 
-gss = sklearn.model_selection.GroupShuffleSplit(n_splits=input_params.N_splits, train_size=.9, random_state = input_params.seed) 
+#gss = sklearn.model_selection.GroupShuffleSplit(n_splits=input_params.N_splits, train_size=.9, random_state = input_params.seed) 
+
+gss = sklearn.model_selection.LeaveOneGroupOut() 
 
 for round_idx, (train_idx, test_idx) in enumerate(gss.split(X, y, groups)):
         
+        print(f'Round {round_idx}')
+
         X_train, X_test, y_train, y_test = X[train_idx,:],X[test_idx,:],y[train_idx],y[test_idx]
         
         if round_idx==0 or input_params.keep_first==False:
@@ -188,7 +195,9 @@ for round_idx, (train_idx, test_idx) in enumerate(gss.split(X, y, groups)):
                     
         cv_res[round_idx,test_idx] = y_pred
         
-        cv_scores.append({'round':round_idx,'r2':sklearn.metrics.r2_score(y_test,y_pred)}|best_hpp)
+        cv_scores.append({'round':round_idx,
+                          'gene':groups[test_idx][0],
+                          'r2':sklearn.metrics.r2_score(y_test,y_pred)}|best_hpp)
         
 cv_scores = pd.DataFrame(cv_scores)
 

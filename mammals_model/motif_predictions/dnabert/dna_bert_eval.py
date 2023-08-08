@@ -8,6 +8,7 @@ from transformers import Trainer
 
 from transformers import AutoTokenizer, AutoModelForMaskedLM, AutoConfig
 
+
 tokenizer = AutoTokenizer.from_pretrained("/s/project/mll/sergey/effect_prediction/MLM/dnabert/default/6-new-12w-0/")
 
 model = AutoModelForMaskedLM.from_pretrained("/s/project/mll/sergey/effect_prediction/MLM/dnabert/default/6-new-12w-0/")

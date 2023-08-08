@@ -1,0 +1,40 @@
+Building DAG of jobs...
+Using shell: /bin/bash
+Provided cores: 2
+Rules claiming more threads will be scaled down.
+Job stats:
+job                   count    min threads    max threads
+------------------  -------  -------------  -------------
+all                       1              1              1
+change_chrom_names        1              1              1
+get_tss_bed               1              1              1
+liftover                  1              1              1
+total                     4              1              1
+
+Select jobs to execute...
+
+[Tue Jul 11 21:42:17 2023]
+rule get_tss_bed:
+    input: /s/project/mll/sergey/effect_prediction/promoter_mutations/biomart/genes_GRCh38.tsv
+    output: /s/project/mll/sergey/effect_prediction/promoter_mutations/genes_GRCh37/genes_GRCh38.bed6
+    jobid: 3
+    reason: Missing output files: /s/project/mll/sergey/effect_prediction/promoter_mutations/genes_GRCh37/genes_GRCh38.bed6
+    resources: tmpdir=/tmp
+
+[Tue Jul 11 21:42:18 2023]
+Error in rule get_tss_bed:
+    jobid: 3
+    input: /s/project/mll/sergey/effect_prediction/promoter_mutations/biomart/genes_GRCh38.tsv
+    output: /s/project/mll/sergey/effect_prediction/promoter_mutations/genes_GRCh37/genes_GRCh38.bed6
+    shell:
+        
+        cat /s/project/mll/sergey/effect_prediction/promoter_mutations/biomart/genes_GRCh38.tsv |tail -n +2|awk '{BEGIN OFS="\t"} {print $5,$2,$3,$1}' \
+        |sort -V -k1,1 -k2,2|uniq|grep -E '^[0-9XYMT]+\s'| sed -e 's/^/chr/' -e 's/chrMT/chrM/'  > /s/project/mll/sergey/effect_prediction/promoter_mutations/genes_GRCh37/genes_GRCh38.bed6
+        
+        (one of the commands exited with non-zero exit code; note that snakemake uses bash strict mode!)
+
+Removing output files of failed job get_tss_bed since they might be corrupted:
+/s/project/mll/sergey/effect_prediction/promoter_mutations/genes_GRCh37/genes_GRCh38.bed6
+Shutting down, this might take some time.
+Exiting because a job execution failed. Look above for error message
+Complete log: .snakemake/log/2023-07-11T214216.777575.snakemake.log

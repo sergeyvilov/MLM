@@ -66,16 +66,23 @@ for key,value in input_params.items():
 
 mpra_df = pd.read_csv(data_dir + 'supl/Supplemental_Table_9.tab', sep='\t', skiprows=1, dtype={'Fold':str}, usecols=[0,1,2,3]) #sequence info
 
-mlm_embeddings = np.load(data_dir + "embeddings/seq_len_5000/embeddings.npy") #masked language model embeddings
+with open(data_dir + "embeddings_reversecompl/seq_len_5000/embeddings.pickle", 'rb') as f:
+    mlm_embeddings = np.array(pickle.load(f))
 
+#masked language model embeddings
+
+
+supt2 = pd.read_csv(data_dir + 'supl/Supplemental_Table_2.tab', sep='\t', skiprows=1, dtype={'Fold':str})
 
 # In[5]:
 
 
-flt = mpra_df.Expression.isna()
+flt = (~mpra_df.Expression.isna()) & (mpra_df.ID.isin(supt2[supt2.Source=='K562'].ID))
 
-mpra_df = mpra_df[~flt]
-mlm_embeddings = mlm_embeddings[~flt]
+flt = ~mpra_df.Expression.isna()
+
+mpra_df = mpra_df[flt]
+mlm_embeddings = mlm_embeddings[flt]
 
 mpra_df = mpra_df.rename(columns={'Sequence':'seq'}).reset_index(drop=True)
 
