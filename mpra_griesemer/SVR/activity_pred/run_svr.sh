@@ -15,7 +15,7 @@
 
 source ~/.bashrc; conda activate svilov-mlm
 
-svr_dir='/s/project/mll/sergey/effect_prediction/MLM/griesemer/SVR_LeaveGroupOut/activity_pred'
+svr_dir='/s/project/mll/sergey/effect_prediction/MLM/griesemer/SVR_LeaveGroupOut/'
 
 c=0
 
@@ -25,14 +25,10 @@ for cell_type in HMEC HEK293FT HEPG2 K562 GM12878 SKNSH; do
     
         if [ ${SLURM_ARRAY_TASK_ID} -eq $c ]; then
         
-            output_dir="$svr_dir/$cell_type/$model"
-
-            params="--cell_type $cell_type --model $model --output_dir $output_dir \
+            params="--cell_type $cell_type --model $model --output_dir $svr_dir \
             --N_trials 1000 --keep_first --N_splits 1000 --N_CVsplits 5 --seed 1"
 
-            mkdir -p $output_dir
-
-            python run_svr.py ${params} > ${output_dir}/log 2>${output_dir}/err 
+            python run_svr.py ${params} > ${svr_dir}/${cell_type}-${model}.log 2>${svr_dir}/${cell_type}-${model}.err 
         fi
         
         c=$((c+1))

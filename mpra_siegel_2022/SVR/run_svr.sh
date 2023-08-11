@@ -27,14 +27,10 @@ for response in stability steady_state; do
 
             if [ ${SLURM_ARRAY_TASK_ID} -eq $c ]; then
 
-                output_dir="$svr_dir/$response/$cell_type/$model"
-
-                params="--cell_type $cell_type --model $model --output_dir $output_dir \
+                params="--cell_type $cell_type --model $model --output_dir $svr_dir \
                 --N_trials 1000 --keep_first --response $response --N_splits 1000 --N_CVsplits 5 --seed 1"
 
-                mkdir -p $output_dir
-
-                python run_svr.py ${params} > ${output_dir}/log 2>${output_dir}/err 
+                python run_svr.py ${params} > ${svr_dir}/${cell_type}-${response}-${model}.log  2>${svr_dir}/${cell_type}-${response}-${model}.err 
             fi
 
             c=$((c+1))

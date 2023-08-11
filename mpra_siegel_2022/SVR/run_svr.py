@@ -21,6 +21,8 @@ import sklearn.metrics
 
 from sklearn.preprocessing import StandardScaler
 
+from multiprocessing import Pool
+
 import optuna
 
 sys.path.append("/data/ouga/home/ag_gagneur/l_vilov/workspace/species-aware-DNA-LM/mpra_griesemer/utils") 
@@ -185,77 +187,60 @@ def hpp_search(X,y,groups,cv_splits = 5):
 
 # In[ ]:
 
-
-#cv_res = np.zeros((input_params.N_splits,len(y))) #predictions for each point in each split
-cv_res = np.zeros((len(set(groups)),len(y))) #predictions for each point in each split
-cv_res[:] = np.NaN 
-
-#cv_res_lasso = np.zeros((input_params.N_splits,len(y))) #predictions for each point in each split
-cv_res_lasso = np.zeros((len(set(groups)),len(y))) #predictions for each point in each split
-cv_res_lasso[:] = np.NaN 
-
-cv_scores = [] #scores and best hyperparameters for each split
-
 gss = sklearn.model_selection.LeaveOneGroupOut() 
 
-#best_hpp = {'alpha':1e-5}
+train_idx, _ = next(iter(gss.split(X, y, groups)))
 
-for round_idx, (train_idx, test_idx) in enumerate(gss.split(X, y, groups)):
+best_hpp = hpp_search(X[train_idx],y[train_idx],groups[train_idx],cv_splits = input_params.N_CVsplits) #get optimal hyperparameters
+
+#best_hpp = {'C': 0.03943153578419499, 'epsilon': 0.0712140417882623, 'gamma': 0.000232694021502066}
+
+def apply_regression(args):
     
-        print(f'Round {round_idx}')
-        
-        X_train, X_test, y_train, y_test = X[train_idx,:],X[test_idx,:],y[train_idx],y[test_idx]
-        
-        if round_idx==0 or input_params.keep_first==False:
-            #perform only ones if input_params.keep_first==True
-            best_hpp = hpp_search(X_train,y_train,groups[train_idx],cv_splits = input_params.N_CVsplits)
-        
-        pipe = sklearn.pipeline.make_pipeline(sklearn.preprocessing.StandardScaler(),
+    train_idx, test_idx = args
+
+    #predict with SVR
+    
+    pipe = sklearn.pipeline.make_pipeline(sklearn.preprocessing.StandardScaler(),
                                               sklearn.svm.SVR(**best_hpp))
         
-        #pipe = sklearn.pipeline.make_pipeline(sklearn.preprocessing.StandardScaler(),
-        #                                      sklearn.linear_model.Lasso(**best_hpp))
+    pipe.fit(X[train_idx],y[train_idx])  
+    
+    y_pred_svr = pipe.predict(X[test_idx])  
+    
+    #predict with Lasso
+    #use inner CV loop to adjust alpha
+    
+    group_kfold = sklearn.model_selection.GroupKFold(n_splits=input_params.N_CVsplits).split(X[train_idx],y[train_idx],groups[train_idx])
+    
+    pipe_lasso = sklearn.pipeline.make_pipeline(sklearn.preprocessing.StandardScaler(), sklearn.linear_model.LassoCV(cv=group_kfold, alphas=10.**np.arange(-6,0))) 
+    
+    pipe_lasso.fit(X[train_idx],y[train_idx])
+    
+    y_pred_lasso = pipe_lasso.predict(X[test_idx])
         
-        pipe.fit(X_train,y_train)
-                    
-        y_pred = pipe.predict(X_test) 
-        
-        cv_res[round_idx,test_idx] = y_pred
-        
-        group_kfold = sklearn.model_selection.GroupKFold(n_splits=input_params.N_CVsplits).split(X_train,y_train,groups[train_idx])
-        pipe_lasso = sklearn.pipeline.make_pipeline(sklearn.preprocessing.StandardScaler(), sklearn.linear_model.LassoCV(cv=group_kfold, alphas=10.**np.arange(-6,0))) 
-        pipe_lasso.fit(X_train,y_train)
-        y_pred_lasso = pipe_lasso.predict(X_test)
-        
-        cv_res_lasso[round_idx,test_idx] = y_pred_lasso
+    print('done')
 
-        cv_scores.append({'round':round_idx,
-                         'chrom':groups[test_idx][0],
-                         'r2_svr':sklearn.metrics.r2_score(y_test,y_pred),
-                         'pearson_r_svr':scipy.stats.pearsonr(y_test,y_pred)[0],
-                         'r2_lasso':sklearn.metrics.r2_score(y_test,y_pred_lasso),
-                         'pearson_r_lasso':scipy.stats.pearsonr(y_test,y_pred_lasso)[0]
-                         }|best_hpp)
-        
-cv_scores = pd.DataFrame(cv_scores)
+    return list(zip(mpra_df.ids.iloc[test_idx], y_pred_svr, y_pred_lasso))
+ 
+def run_pool():
+    
+    all_res = []
+    
+    pool = Pool(processes=input_params.n_jobs,maxtasksperchild=5)
 
-# In[ ]:
+    for res in pool.imap(apply_regression,gss.split(X,y,groups)):
+        all_res.extend(res)
+     
+    pool.close()
+    pool.join()
+    
+    return all_res
 
+print('running parallel')
 
-os.makedirs(input_params.output_dir, exist_ok=True) #make output dir
+all_res = run_pool()
 
-cv_scores.to_csv(input_params.output_dir + '/cv_scores.tsv', sep='\t', index=None) #save scores
+all_res = pd.DataFrame(all_res, columns=['ids','y_pred_svr','y_pred_lasso'])
 
-with open(input_params.output_dir + '/cv_res.npy', 'wb') as f:
-    np.save(f, cv_res) #save predictions at each round
-    np.save(f, y)
-
-with open(input_params.output_dir + '/cv_res_lasso.npy', 'wb') as f:
-    np.save(f, cv_res_lasso) #save predictions at each round
-    np.save(f, y)
-
-# In[ ]:
-
-
-
-
+mpra_df.merge(all_res, how='left').to_csv(input_params.output_dir + f'/{input_params.cell_type}-{input_params.response}-{input_params.model}.tsv', sep='\t', index=None) 
