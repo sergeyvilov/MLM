@@ -24,6 +24,8 @@ test_dataset='/s/project/mll/sergey/effect_prediction/MLM/motif_predictions/spli
 
 dataset_len=500
 
+output_logits=1
+
 total_seq=$(wc -l $test_dataset|cut -d" " -f1)
 
 mkdir -p $output_dir
@@ -36,7 +38,7 @@ for dataset_start in `seq 0 $dataset_len $total_seq`; do
 
     if [ ${SLURM_ARRAY_TASK_ID} -eq $c ]; then
 
-        python -u dna_bert_eval.py  $output_dir $test_dataset $dataset_start $dataset_len > ${output_dir}/log_$dataset_start 2>${output_dir}/err_$dataset_start 
+        python -u dna_bert_eval.py  $output_dir $test_dataset $dataset_start $dataset_len $output_logits  > ${output_dir}/log_$dataset_start 2>${output_dir}/err_$dataset_start 
 
     fi
 

@@ -34,7 +34,7 @@ test_dataset = sys.argv[2]#'/s/project/mll/sergey/effect_prediction/MLM/motif_pr
 
 dataset_start = int(sys.argv[3])
 dataset_len = int(sys.argv[4])
-
+output_logits = int(sys.argv[5])
 
 print(f'Running inference for sequences {dataset_start}-{dataset_start+dataset_len}')
 
@@ -209,7 +209,10 @@ def predict_on_batch(tokenized_data, dataset, seq_idx):
         #print (res[0], res.shape)
         res = res.to(device)
         with torch.no_grad():
-            fin_calculation = torch.softmax(model(res)['logits'], dim=2).detach().cpu()   
+            if output_logits:
+                fin_calculation = model(res)['logits'].detach().cpu()
+            else:
+                fin_calculation = torch.softmax(model(res)['logits'], dim=2).detach().cpu()   
         return fin_calculation
 
 
@@ -343,7 +346,11 @@ for no_of_index, tokenized_data in enumerate(data_loader):
     # First 5 nucleotides we infer from the first 6-mer
     inputs[:, 1:7] = 4 # we mask the first 6 6-mers
     inputs = inputs.to(device) 
-    model_pred = torch.softmax(model(inputs)['logits'], dim=2)
+    
+    if output_logits:
+        model_pred = model(inputs)['logits']
+    else:
+        model_pred = torch.softmax(model(inputs)['logits'], dim=2)
     
     for i in range(5):
         res,gt = extract_prbs_from_pred(prediction=model_pred[0],
@@ -403,5 +410,11 @@ dataset[['seq_name','seq']].drop_duplicates().to_csv(output_dir + f"/seq_{datase
 
 
 prbs_arr = np.array(torch.stack(predicted_prbs))
-np.save(output_dir + f"/preds_{dataset_start}.npy", prbs_arr)
+
+if output_logits:
+    output_name = f'logits_{dataset_start}.npy'
+else:
+    output_name = f'preds_{dataset_start}.npy'
+
+np.save(output_dir + f"/{output_name}", prbs_arr)
 

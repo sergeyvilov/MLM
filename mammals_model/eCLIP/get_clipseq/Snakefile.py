@@ -9,12 +9,15 @@ liftover_dir = '/s/project/mll/sergey/effect_prediction/tools/liftOver/'
 
 table_3utr = '/s/project/mll/sergey/effect_prediction/MLM/UTR_coords/GRCh38_3_prime_UTR_clean.bed'
 
-PhyloP_tsv = '/s/project/mll/sergey/effect_prediction/tools/PhyloP/hg38.phyloP100way.tsv.gz'
+PhyloP_dir = '/s/project/mll/sergey/effect_prediction/tools/PhyloP/'
+
+PhyloP_tsv = {'PhyloP100': PhyloP_dir + 'hg38.phyloP100way.tsv.gz',
+            'PhyloP241': PhyloP_dir + '241-mammalian-2020v2.tsv.gz',}
 
 rule all:
     input:
-        progress_dir + 'eCLIP.3utr.pos.PhyloP.bed',
-        progress_dir + 'eCLIP.3utr.neg.PhyloP.bed',
+        expand(progress_dir + 'eCLIP.3utr.{subset}.PhyloP.bed', subset=['pos','neg']),
+
 
 rule get_tss_bed:
     input:
@@ -65,16 +68,16 @@ rule limit_3utr:
         cat {input.bed}|awk 'BEGIN{{OFS="\t"}}{{if ($6=="+") {{$3=($3<$2+5000)?$3:$2+5000}} else {{$2=($3-5000>$2)?$3-5000:$2}};print}}' > {output.bed}
         '''
 
-rule split_cell_type:
-    #split IDR  (storng peaks) peaks into cell types
-    input:
-        eclip_bed = progress_dir + 'eCLIP.hg38.extended.bed',
-    output:
-        eclip_bed = progress_dir + 'eCLIP.hg38.IDR_{cell_type}.bed',
-    shell:
-        r'''
-        grep "_IDR" {input.eclip_bed}|grep  "{wildcards.cell_type}" > {output.eclip_bed}
-        '''
+# rule split_cell_type:
+#     #split IDR  (storng peaks) peaks into cell types
+#     input:
+#         eclip_bed = progress_dir + 'eCLIP.hg38.extended.bed',
+#     output:
+#         eclip_bed = progress_dir + 'eCLIP.hg38.IDR_{cell_type}.bed',
+#     shell:
+#         r'''
+#         grep "_IDR" {input.eclip_bed}|grep  "{wildcards.cell_type}" > {output.eclip_bed}
+#         '''
 
 # rule get_positive_merged_set:
 #     #positive set: intersection of IDR (storng peaks) with 3'UTR coordinates
@@ -83,12 +86,26 @@ rule split_cell_type:
 #         K562_bed = progress_dir + 'eCLIP.hg38.IDR_K562.bed',
 #         utr_bed =  progress_dir + 'GRCh38.3utr_5Klimited.bed',
 #     output:
-#         bed = progress_dir + 'eCLIP.3utr.pos_merged.bed',
+#         bed = progress_dir + 'eCLIP.3utr.pos_IDR_merged.bed',
 #     shell:
 #         r'''
 #         bedtools intersect -s -a {input.HepG2_bed} -b {input.K562_bed} | bedtools intersect -s -a stdin -b {input.utr_bed} \
-#         |sort -k1,1 -k2,2n|bedtools merge -i - | awk 'BEGIN{{OFS="\t"}} {{if ($3-$2>50) {{print}} }}' | \
-#         bedtools intersect -a stdin -b {input.utr_bed} -f 1 -wo  > {output.bed}
+#         |sort -k1,1 -k2,2n|bedtools merge -i - | awk 'BEGIN{{OFS="\t"}} {{if ($3-$2>50) {{print}} }}'  \
+#         |bedtools intersect -a stdin -b {input.utr_bed} -f 1 -wo \
+#         |awk 'BEGIN{{OFS="\t"}} {{print $1,$2,$3,$7,$8,$9}}'|sort -k1,1 -k2,2n|uniq  > {output.bed}
+#         '''
+
+# rule get_positive_IDR_set:
+#     #positive set: intersection of IDR (storng peaks) with 3'UTR coordinates
+#     input:
+#         eclip_bed = progress_dir + 'eCLIP.hg38.extended.bed',
+#         utr_bed =  progress_dir + 'GRCh38.3utr_5Klimited.bed',
+#     output:
+#         bed = progress_dir + 'eCLIP.3utr.pos_IDR.bed',
+#     shell:
+#         r'''
+#         grep "_IDR" {input.eclip_bed} | bedtools intersect -s -a stdin -b {input.utr_bed} -wo -f 1 | sort -k1,1 -k2,2n \
+#         |awk 'BEGIN{{OFS="\t"}} {{if ($3-$2>50) {{print}} }}' > {output.bed}
 #         '''
 
 rule get_positive_set:
@@ -100,7 +117,7 @@ rule get_positive_set:
         bed = progress_dir + 'eCLIP.3utr.pos.bed',
     shell:
         r'''
-        grep "_IDR" {input.eclip_bed} | bedtools intersect -s -a stdin -b {input.utr_bed} -wo -f 1 | sort -k1,1 -k2,2n \
+        bedtools intersect -s -a  {input.eclip_bed} -b {input.utr_bed} -wo -f 1 | sort -k1,1 -k2,2n \
         |awk 'BEGIN{{OFS="\t"}} {{if ($3-$2>50) {{print}} }}' > {output.bed}
         '''
 
@@ -120,9 +137,9 @@ rule get_negative_set:
 rule annotate_PhyloP:
     input:
         bed = progress_dir + 'eCLIP.3utr.{subset}.bed',
-        phylop_tsv = PhyloP_tsv
+        phylop_tsv = lambda w: PhyloP_tsv[w.consv_model]
     output:
-        bed = progress_dir + 'eCLIP.3utr.{subset}.PhyloP.bed',
+        bed = progress_dir + 'eCLIP.3utr.{subset}.{consv_model}.bed',
     resources:
         mem = "16g"
     shell:
@@ -132,4 +149,17 @@ rule annotate_PhyloP:
             |awk 'BEGIN{{OFS="\t"}}{{print $1,$2,$3,$4,$14,$25}}' \
             |awk '{{for (idx=1;idx<NF-1;idx++) {{printf $idx":"}};printf $(NF-1)"\t"$NF"\n"}}' \
             |awk '{{arr[$1]+=$2;count[$1]+=1}}END{{for (a in arr) {{print a"\t"arr[a] / count[a]}} }}'|sed 's/:/\t/g' > {output.bed}
+        '''
+
+rule merge_PhyloP:
+    input:
+        PhyloP100_bed =  progress_dir + 'eCLIP.3utr.{subset}.PhyloP100.bed',
+        PhyloP241_bed =  progress_dir + 'eCLIP.3utr.{subset}.PhyloP241.bed',
+    output:
+        bed = progress_dir + 'eCLIP.3utr.{subset}.PhyloP.bed'
+    shell:
+        r'''
+        join  -j 1 <(sort {input.PhyloP100_bed} | awk '{{for (idx=1;idx<NF-1;idx++) {{printf $idx":"}};printf $(NF-1)"\t"$NF"\n"}}') \
+        <(sort {input.PhyloP241_bed} | awk '{{for (idx=1;idx<NF-1;idx++) {{printf $idx":"}};printf $(NF-1)"\t"$NF"\n"}}') \
+        | sed 's/:/\t/g' > {output.bed}
         '''

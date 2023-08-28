@@ -1,0 +1,33 @@
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cluster nodes: 100
+Job stats:
+job                count
+---------------  -------
+all                    1
+annotate_PhyloP        2
+total                  3
+
+Select jobs to execute...
+
+[Wed Aug 16 11:56:07 2023]
+rule annotate_PhyloP:
+    input: /s/project/mll/sergey/effect_prediction/MLM/eCLIP/data/eCLIP.3utr.pos_merged.bed, /s/project/mll/sergey/effect_prediction/tools/PhyloP/241-mammalian-2020v2.tsv.gz
+    output: /s/project/mll/sergey/effect_prediction/MLM/eCLIP/data/eCLIP.3utr.pos_merged.PhyloP241.bed
+    jobid: 9
+    reason: Missing output files: /s/project/mll/sergey/effect_prediction/MLM/eCLIP/data/eCLIP.3utr.pos_merged.PhyloP241.bed
+    wildcards: subset=pos_merged, consv_model=PhyloP241
+    resources: mem_mb=16000, mem_mib=23179, disk_mb=24304, disk_mib=23179, tmpdir=<TBD>, mem=16g
+
+Submitted job 9 with external jobid 'Submitted batch job 8040517'.
+
+[Wed Aug 16 11:56:09 2023]
+rule annotate_PhyloP:
+    input: /s/project/mll/sergey/effect_prediction/MLM/eCLIP/data/eCLIP.3utr.pos_merged.bed, /s/project/mll/sergey/effect_prediction/tools/PhyloP/hg38.phyloP100way.tsv.gz
+    output: /s/project/mll/sergey/effect_prediction/MLM/eCLIP/data/eCLIP.3utr.pos_merged.PhyloP100.bed
+    jobid: 1
+    reason: Missing output files: /s/project/mll/sergey/effect_prediction/MLM/eCLIP/data/eCLIP.3utr.pos_merged.PhyloP100.bed
+    wildcards: subset=pos_merged, consv_model=PhyloP100
+    resources: mem_mb=16000, mem_mib=25106, disk_mb=26325, disk_mib=25106, tmpdir=<TBD>, mem=16g
+
+Submitted job 1 with external jobid 'Submitted batch job 8040518'.

@@ -1,5 +1,3 @@
-nohup: ignoring input
-mkdir: cannot create directory ‘slurm_logs’: File exists
 Building DAG of jobs...
 Using shell: /usr/bin/bash
 Provided cluster nodes: 100
