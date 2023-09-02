@@ -127,14 +127,15 @@ def model_eval(model, optimizer, dataloader, device, get_embeddings = False, get
                 
                 sm = log_softmax(masked_logits, dim=1)
                 
-                #target_probas = torch.gather(torch.exp(sm),-1, masked_targets.unsqueeze(1)).squeeze().numpy() #probs only for true label
+                ##target_probas = torch.gather(torch.exp(sm),-1, masked_targets.unsqueeze(1)).squeeze().numpy() #probs only for true label
                 
                 target_probas = torch.exp(sm)[:,:4].numpy()#probs for all bases
                 
                 seq_name = dataloader.dataset.seq_df.iloc[itr_idx].seq_name.split(':')[0]
                 
                 motif_probas.append((seq_name,target_probas))
-                
+                #motif_probas.append((seq_name,masked_logits.detach().numpy()))
+
                 ##assert len(target_probas) == len(seq[0])
                 #for motif in selected_motifs:
                 #    for match in re.finditer(motif, seq[0]):
